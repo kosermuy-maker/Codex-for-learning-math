@@ -4,6 +4,7 @@ All notable changes are tracked here. This project follows a pragmatic changelog
 
 ## Unreleased
 
+- Added upstream attribution: this repository is documented as a derived work of `ULing19/Codex-for-learning-math` (MIT, © 2026 Hong Zhang) in `README.md`, `MAINTAINERS.md`, `CITATION.cff` and `LICENSE`, and the published branch now carries the original 49-commit history instead of a squashed snapshot.
 - Rebuilt the sub-860px shell as a phone app shell: a sticky top bar (menu + brand + mastery progress), a sticky search row under it, filters behind a `⚙ 筛选` drawer, a five-tab bottom bar (手册 / 实验室 / 复习 / 归因 / 背诵), and a full-screen recite mode.
 - Fixed the phone-wide horizontal overflow: grid/flex children kept `min-width: auto`, so the MathJax formula block and the horizontally scrolling recommendation chips forced the page to a 648px minimum width — every 390px phone clipped ~258px on the right and pushed the bottom bar off screen. `min-width: 0` on the long-content children brings the page back to the viewport width at 390/360/320px.
 - Fixed the mobile drawer stacking: `.app-shell` (`z-index: 0` + `isolation: isolate`) trapped the fixed sidebar below the root-level scrim, so the drawer rendered dimmed and its `✕` close button received no taps (verified broken on the deployed build). The mobile shell drops that stacking context and the scrim now covers only the strip to the right of the drawer.

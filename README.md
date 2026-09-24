@@ -3,6 +3,9 @@
 > 考研数学一交互公式手册：把公式、证明思路、使用场景、例题、易错点和可视化实验室放进一个纯静态学习工作台。  
 > Interactive Math I formula handbook for postgraduate entrance exam review, built as a searchable static learning workspace.
 
+> **来源 / Attribution**：本仓库是 [ULing19/Codex-for-learning-math](https://github.com/ULing19/Codex-for-learning-math)（MIT License，原作者 Hong Zhang）的**二次开发版本**；上游的 49 次提交历史见原仓库。手机端（≤860px）App 化改版、移动端横向溢出修复与触控优化由 `@kosermuy-maker` 维护。
+> This repository is a **derived work** of [ULing19/Codex-for-learning-math](https://github.com/ULing19/Codex-for-learning-math) (MIT License, original author Hong Zhang); the original 49-commit history lives upstream. The phone app shell (≤860px), horizontal-overflow fix and touch-target work are maintained by `@kosermuy-maker`.
+
 [![Verify handbook](https://github.com/kosermuy-maker/Codex-for-learning-math/actions/workflows/verify.yml/badge.svg)](https://github.com/kosermuy-maker/Codex-for-learning-math/actions/workflows/verify.yml)
 [![Deploy Pages](https://github.com/kosermuy-maker/Codex-for-learning-math/actions/workflows/pages.yml/badge.svg)](https://github.com/kosermuy-maker/Codex-for-learning-math/actions/workflows/pages.yml)
 [![License: MIT](https://img.shields.io/badge/License-MIT-blue.svg)](./LICENSE)
@@ -252,3 +255,8 @@ For formula corrections, include the formula card ID, the suspected issue, the c
 ## License
 
 MIT. See `LICENSE`.
+
+- Original work © 2026 Hong Zhang — [ULing19/Codex-for-learning-math](https://github.com/ULing19/Codex-for-learning-math), MIT License.
+- Modifications © 2026 kosermuy-maker — this repository.
+
+This is a modified redistribution of the original work: the original copyright notice and the MIT permission notice are retained unchanged in `LICENSE`, as the license requires.

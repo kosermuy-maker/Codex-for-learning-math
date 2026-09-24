@@ -9,6 +9,7 @@ This file defines practical review ownership for the handbook. It does not creat
 - GitHub owner: `@kosermuy-maker`
 - Repository: `kosermuy-maker/Codex-for-learning-math`
 - Live site: https://kosermuy-maker.github.io/Codex-for-learning-math/handbook/
+- Upstream / 上游: [ULing19/Codex-for-learning-math](https://github.com/ULing19/Codex-for-learning-math)（MIT License，原作者 Hong Zhang）— 本仓库是其二次开发版本，上游历史与原始设计归属原项目
 
 ## Review Areas / 审查领域
 

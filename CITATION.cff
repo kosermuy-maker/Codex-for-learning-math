@@ -4,6 +4,10 @@ title: "Codex for Learning Math: 考研数学一交互公式手册"
 type: software
 authors:
   - name: "ULing19"
+    alias: "Hong Zhang (original work)"
+  - name: "kosermuy-maker"
+    alias: "fork maintainer / 二次开发维护者"
+    website: "https://github.com/kosermuy-maker/Codex-for-learning-math"
 repository-code: "https://github.com/kosermuy-maker/Codex-for-learning-math"
 url: "https://kosermuy-maker.github.io/Codex-for-learning-math/handbook/"
 license: MIT
