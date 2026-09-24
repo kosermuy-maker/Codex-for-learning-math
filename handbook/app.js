@@ -322,6 +322,14 @@
     el.querySelectorAll(".today-rec-btn").forEach(btn => {
       btn.addEventListener("click", () => jumpToCard(btn.dataset.goto));
     });
+    // 手机端整行都可点（一行 ≥44px 的触控目标），「去复习」按钮自己仍然生效
+    el.querySelectorAll(".today-rec-item").forEach(item => {
+      item.addEventListener("click", (event) => {
+        if (event.target.closest(".today-rec-btn")) return;
+        const btn = item.querySelector(".today-rec-btn");
+        if (btn) jumpToCard(btn.dataset.goto);
+      });
+    });
   }
 
   function renderMasteryStats() {
@@ -331,6 +339,10 @@
     const unseen = total - known - familiar;
     const percent = total ? Math.round(known / total * 100) : 0;
     setText("knownCount", known);
+    // 手机顶栏的掌握进度（桌面端该节点不可见，写入无副作用）
+    setText("appBarPct", `${percent}%`);
+    const appBarFillEl = $("appBarFill");
+    if (appBarFillEl) appBarFillEl.style.width = `${percent}%`;
     setHtml("dashStats",
       `<div class="dash-stat-item unseen"><strong>${unseen}</strong>未学</div>` +
       `<div class="dash-stat-item familiar"><strong>${familiar}</strong>认识</div>` +
@@ -473,6 +485,13 @@
       button.addEventListener("click", () => switchView(button.dataset.view));
     });
     on("mobileMenuBtn", "click", openSidebar);
+    // 手机端：筛选收进抽屉，默认只留搜索
+    on("filterToggleBtn", "click", () => {
+      const toggle = $("filterToggleBtn");
+      const isOpen = Boolean(toggle?.closest(".toolbar")?.classList.toggle("filters-open"));
+      if (toggle) toggle.setAttribute("aria-expanded", isOpen ? "true" : "false");
+      setText("filterToggleBtn", isOpen ? "✕ 收起" : "⚙ 筛选");
+    });
     on("sidebarClose", "click", closeSidebar);
     on("sidebarOverlay", "click", closeSidebar);
     on("clearLocalDataBtn", "click", clearLocalLearningData);
@@ -521,6 +540,8 @@
     });
     $("reciteStage")?.classList.toggle("hidden", !state.reciteMode);
     document.body.classList.toggle("recite-on", state.reciteMode);
+    // 手机外壳按视图微调（实验室/复习/归因下不需要搜索栏）
+    document.body.dataset.view = state.view;
   }
 
   function capitalize(value) {

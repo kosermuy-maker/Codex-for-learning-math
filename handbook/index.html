@@ -9,14 +9,14 @@
   <meta property="og:type" content="website" />
   <meta property="og:title" content="考研数学一学习工作台 · 494 张交互公式卡" />
   <meta property="og:description" content="高数、线代、概率统计 494 张公式卡，含适用条件、直觉、证明、易错点与 15 种交互演示。" />
-  <meta property="og:image" content="./preview.png?v=1.1.0" />
-  <meta name="app-version" content="1.1.0" />
+  <meta property="og:image" content="./preview.png?v=1.2.0" />
+  <meta name="app-version" content="1.2.0" />
   <link rel="icon" href="data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 64 64'%3E%3Crect width='64' height='64' rx='14' fill='%23fff4dc'/%3E%3Ctext x='32' y='42' font-size='38' text-anchor='middle' fill='%23b45f06'%3E%E2%88%91%3C/text%3E%3C/svg%3E" />
   <link rel="apple-touch-icon" href="./icon.svg" />
   <link rel="manifest" href="./manifest.webmanifest" />
   <meta name="apple-mobile-web-app-capable" content="yes" />
   <meta name="apple-mobile-web-app-title" content="数学一公式" />
-  <link rel="stylesheet" href="./styles.css?v=1.1.0" />
+  <link rel="stylesheet" href="./styles.css?v=1.2.0" />
   <script>
     window.MathJax = {
       tex: { inlineMath: [['$', '$'], ['\\(', '\\)']], displayMath: [['\\[', '\\]']] },
@@ -29,13 +29,23 @@
     };
   </script>
   <script defer src="https://cdn.jsdelivr.net/npm/mathjax@4/tex-chtml.js"></script>
-  <script defer src="./study-layer.js?v=1.1.0"></script>
-  <script defer src="./formula-data.js?v=1.1.0"></script>
-  <script defer src="./app.js?v=1.1.0"></script>
+  <script defer src="./study-layer.js?v=1.2.0"></script>
+  <script defer src="./formula-data.js?v=1.2.0"></script>
+  <script defer src="./app.js?v=1.2.0"></script>
 </head>
 <body>
   <!-- 移动端侧边栏遮罩 -->
   <div id="sidebarOverlay" class="sidebar-overlay" aria-hidden="true"></div>
+
+  <!-- ── 移动端 App 顶栏（桌面端隐藏）── -->
+  <header id="appBar" class="app-bar">
+    <button id="mobileMenuBtn" class="app-bar-btn" type="button" aria-label="打开章节目录" title="章节目录">☰</button>
+    <span class="app-bar-brand"><span class="app-bar-mark" aria-hidden="true">∑</span>数学一公式</span>
+    <span class="app-bar-progress" title="已掌握公式比例">
+      <b id="appBarPct">0%</b>
+      <span class="app-bar-track" aria-hidden="true"><span id="appBarFill" class="app-bar-fill"></span></span>
+    </span>
+  </header>
 
   <div class="app-shell">
     <!-- ── 侧边栏 ── -->
@@ -96,7 +106,8 @@
           <span>🔍 搜索</span>
           <input id="searchInput" type="search" placeholder="华里士、等价无穷小、Green、正定、卷积…" />
         </label>
-        <div class="filter-row">
+        <button id="filterToggleBtn" class="btn-ghost filter-toggle" type="button" aria-expanded="false" aria-controls="filterRow" title="展开或收起筛选">⚙ 筛选</button>
+        <div class="filter-row" id="filterRow">
           <label>
             重要程度
             <select id="importanceFilter">
@@ -192,14 +203,13 @@
     </main>
   </div>
 
-  <!-- 移动端底部导航 -->
+  <!-- 移动端底部导航（5 个主标签；目录入口在顶部 App 栏） -->
   <nav class="bottom-nav" aria-label="底部导航">
     <button class="bnav-btn active" data-view="cards">📚<span>手册</span></button>
     <button class="bnav-btn" data-view="labs">🔬<span>实验室</span></button>
     <button class="bnav-btn" data-view="review">📅<span>复习</span></button>
     <button class="bnav-btn" data-view="errors">🎯<span>归因</span></button>
     <button id="reciteNavBtn" class="bnav-btn" type="button" aria-label="背诵模式">🧠<span>背诵</span></button>
-    <button id="mobileMenuBtn" class="bnav-btn">☰<span>目录</span></button>
   </nav>
 </body>
 </html>

@@ -4,6 +4,13 @@ All notable changes are tracked here. This project follows a pragmatic changelog
 
 ## Unreleased
 
+- Rebuilt the sub-860px shell as a phone app shell: a sticky top bar (menu + brand + mastery progress), a sticky search row under it, filters behind a `⚙ 筛选` drawer, a five-tab bottom bar (手册 / 实验室 / 复习 / 归因 / 背诵), and a full-screen recite mode.
+- Fixed the phone-wide horizontal overflow: grid/flex children kept `min-width: auto`, so the MathJax formula block and the horizontally scrolling recommendation chips forced the page to a 648px minimum width — every 390px phone clipped ~258px on the right and pushed the bottom bar off screen. `min-width: 0` on the long-content children brings the page back to the viewport width at 390/360/320px.
+- Fixed the mobile drawer stacking: `.app-shell` (`z-index: 0` + `isolation: isolate`) trapped the fixed sidebar below the root-level scrim, so the drawer rendered dimmed and its `✕` close button received no taps (verified broken on the deployed build). The mobile shell drops that stacking context and the scrim now covers only the strip to the right of the drawer.
+- Recommendations now stack vertically on phones, filters fold into a 2-column drawer, and the sidebar close button plus every bottom tab meet the 44px touch target.
+- Added safe-area fallbacks (`env(safe-area-inset-*)` always preceded by a plain declaration) for the top bar, search row, bottom bar, recite bar, drawer, and content padding.
+- Bumped static app metadata and cache-busted assets to `1.2.0` for the phone app shell.
+
 - Published this copy under `kosermuy-maker/Codex-for-learning-math` so GitHub Pages deploys to `https://kosermuy-maker.github.io/Codex-for-learning-math/handbook/`.
 - Bumped static app metadata and cache-busted assets to `1.1.0` for the windowed renderer and mobile recite layout.
 - Windowed the card lists: the first 16 cards render up front and an `IntersectionObserver` sentinel appends the next window while scrolling, so the first screen no longer builds and typesets all 494 cards at once.

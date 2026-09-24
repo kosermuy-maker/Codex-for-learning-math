@@ -1151,3 +1151,265 @@ pre { overflow: auto; padding: 10px; border-radius: 10px; background: #1f2937; c
   outline-offset: 2px;
   background: #dbeafe;
 }
+
+/* ══════════════════════════════════════════════════════════════
+   v1.2 手机 App 外壳：固定顶栏 + 常驻搜索 + 底部 5 标签
+   放在文件末尾，确保覆盖上面的桌面规则（同优先级时后写的生效）。
+
+   背景：390px 手机上整页最小宽度被撑到 648px（右侧切掉 258px、
+   底栏被推出可视区），根因是 grid/flex 子项的 min-width:auto —— 子项
+   不能收缩到内容最小宽度以下，而 MathJax 长公式与横向滚动的 chip
+   行最小宽度远超屏幕。这里统一给承载长内容的子项 min-width:0，
+   让公式卡自身收缩到屏幕宽、长公式在卡内横向滚动。
+══════════════════════════════════════════════════════════════ */
+
+/* 桌面端不显示移动顶栏与筛选开关 */
+.app-bar { display: none; }
+.filter-toggle { display: none; }
+
+@media (max-width: 860px) {
+  :root { --appbar-h: 60px; --bottom-nav-h: 56px; }
+
+  /* 手机端：侧边栏必须在遮罩之上。
+     .app-shell 原本是 z-index:0 + isolation:isolate 的层叠上下文，
+     侧边栏（fixed, z=5000）被关在这层里，永远低于根级的遮罩（z=4000）——
+     于是抽屉被压暗、右上角 ✕ 收不到点击（只能靠点遮罩关闭）。
+     手机上取消这层上下文，让 z-index 按根级比较。 */
+  .app-shell { z-index: auto; isolation: auto; }
+  /* 遮罩只盖抽屉右侧那块（抽屉自己已在上层），点击任意可见遮罩仍可关闭 */
+  .sidebar-overlay.active,
+  .sidebar-overlay.open { left: min(var(--sidebar-w), 85vw); }
+  /* 抽屉关闭后立刻退出命中测试：否则滑出动画那 0.25s 里它会盖住底部标签，
+     手机上一个刚关完抽屉就点「实验室」的手（或自动化用例）会落空 */
+  .sidebar { pointer-events: none; }
+  .sidebar.open { pointer-events: auto; }
+
+  /* ── 1. 横向溢出根治 ── */
+  .hero > *,
+  .formula-list > *,
+  .toolbar > *,
+  .filter-row > *,
+  .toolbar-right > *,
+  .formula-head > *,
+  .card-actions > *,
+  .detail-grid > *,
+  .labs-grid > *,
+  .review-controls > *,
+  .rel-row > *,
+  .tag-row > * { min-width: 0; }
+
+  .main {
+    min-width: 0;
+    display: flex; flex-direction: column;
+    padding: 12px 12px 92px;
+    padding-bottom: calc(92px + env(safe-area-inset-bottom, 0px));
+  }
+  /* 抽屉顶部避让刘海/状态栏，底部避让 home 指示条 */
+  .sidebar {
+    padding-top: 18px;                                        /* 老浏览器兜底 */
+    padding-top: calc(18px + env(safe-area-inset-top, 0px));
+    padding-bottom: 18px;
+    padding-bottom: calc(18px + env(safe-area-inset-bottom, 0px));
+  }
+  /* 搜索栏提到首屏最上方（App 的习惯位置），推荐与数字排在后面 */
+  .main > .toolbar { order: -1; }
+
+  /* ── 2. 顶栏：品牌 + 目录 + 掌握进度 ── */
+  .app-bar {
+    display: flex; align-items: center; gap: 8px;
+    position: -webkit-sticky; position: sticky; top: 0; z-index: 3400;
+    min-height: var(--appbar-h); padding: 4px 10px;
+    padding-top: 4px;                                         /* 老浏览器兜底 */
+    padding-top: calc(4px + env(safe-area-inset-top, 0px));
+    background: rgba(255,249,240,.95);
+    border-bottom: 1px solid var(--line);
+    -webkit-backdrop-filter: blur(14px); backdrop-filter: blur(14px);
+    isolation: isolate; transform: translateZ(0);
+  }
+  .app-bar-btn {
+    flex: 0 0 auto; width: 44px; height: 44px; min-height: 44px; padding: 0;
+    display: grid; place-items: center; font-size: 19px; line-height: 1;
+    background: transparent; border: 1px solid transparent; color: var(--text);
+    border-radius: 12px; -webkit-tap-highlight-color: transparent;
+  }
+  .app-bar-btn:active { background: var(--panel-strong); transform: none; }
+  .app-bar-brand {
+    display: flex; align-items: center; gap: 7px; min-width: 0;
+    font-size: 15px; font-weight: 800; letter-spacing: .01em;
+    overflow: hidden; text-overflow: ellipsis; white-space: nowrap;
+  }
+  .app-bar-mark {
+    flex: 0 0 auto; width: 26px; height: 26px; display: grid; place-items: center;
+    border-radius: 9px; color: #fff; font-size: 15px; font-weight: 900;
+    background: linear-gradient(135deg,var(--accent),#f59e0b);
+  }
+  .app-bar-progress {
+    margin-left: auto; flex: 0 0 auto;
+    display: flex; align-items: center; gap: 6px;
+    padding: 5px 10px; border-radius: 999px;
+    background: var(--panel-strong); border: 1px solid var(--line);
+    font-size: 11px; font-weight: 800; color: var(--accent);
+    font-variant-numeric: tabular-nums;
+  }
+  .app-bar-track {
+    display: block; width: 34px; height: 5px;
+    border-radius: 99px; background: #e9ddd0; overflow: hidden;
+  }
+  .app-bar-fill {
+    display: block; width: 0; height: 100%; border-radius: 99px;
+    background: linear-gradient(90deg,var(--accent),var(--green));
+    transition: width .3s ease;
+  }
+
+  /* ── 3. 搜索常驻 + 筛选收进抽屉（不再占掉首屏一半） ── */
+  .toolbar {
+    display: flex; flex-wrap: wrap; align-items: center; gap: 8px;
+    position: -webkit-sticky; position: sticky; z-index: 3300;
+    top: var(--appbar-h);                                     /* 老浏览器兜底 */
+    top: calc(var(--appbar-h) + env(safe-area-inset-top, 0px));
+    margin: 0 0 10px; padding: 8px 10px; border-radius: 16px;
+    background: rgba(255,249,240,.97);
+    -webkit-backdrop-filter: blur(14px); backdrop-filter: blur(14px);
+    box-shadow: 0 8px 20px rgba(74,45,15,.08);
+    max-height: 74vh; max-height: 74dvh; overflow-y: auto;
+    overscroll-behavior: contain;
+  }
+  .toolbar .search-box {
+    flex: 1 1 auto; width: auto; min-width: 0;
+    display: flex; align-items: center; gap: 6px;
+  }
+  .toolbar .search-box > span { font-size: 12px; white-space: nowrap; }
+  .toolbar .search-box input {
+    flex: 1 1 auto; width: auto; min-width: 0;
+    min-height: 44px; border-radius: 12px; font-size: 16px;
+    background: #fffdf8;
+  }
+  /* 关联卡 chip（卡片详情里）也要手指够得着 */
+  .rel-chip { min-height: 34px; padding: 6px 10px; }
+  .filter-toggle {
+    display: inline-flex; align-items: center; justify-content: center;
+    flex: 0 0 auto; min-height: 42px; padding: 0 12px; border-radius: 12px;
+    font-size: 12px; font-weight: 700;
+    background: var(--panel-strong); color: var(--accent); border-color: var(--line);
+  }
+  .toolbar:not(.filters-open) .filter-row,
+  .toolbar:not(.filters-open) .toolbar-right { display: none; }
+  .toolbar.filters-open { padding-bottom: 12px; }
+  .toolbar.filters-open .filter-row {
+    flex: 1 1 100%; width: 100%;
+    display: grid; grid-template-columns: repeat(3, minmax(0, 1fr)); gap: 8px;
+    overflow-x: visible; padding-bottom: 0;
+  }
+  .toolbar.filters-open .filter-row label { min-width: 0; }
+  .toolbar.filters-open .filter-row select { width: 100%; }
+  .toolbar.filters-open .toolbar-right {
+    flex: 1 1 100%; width: 100%; margin-left: 0; gap: 6px;
+    display: grid; grid-template-columns: repeat(2, minmax(0, 1fr));
+    overflow-x: visible; padding-bottom: 0;
+  }
+  .toolbar.filters-open .toolbar-right button { width: 100%; min-height: 40px; font-size: 12px; }
+  /* 第 5 个按钮（背诵）独占一行，避免半个空格子 */
+  .toolbar.filters-open .toolbar-right button:last-child { grid-column: 1 / -1; }
+
+  /* 实验室 / 复习 / 归因 视图不需要搜索与筛选，让内容上移 */
+  body[data-view="labs"] .toolbar,
+  body[data-view="review"] .toolbar,
+  body[data-view="errors"] .toolbar { display: none; }
+
+  /* ── 4. 首屏只留信息与入口，去掉口号与说明 ── */
+  .hero { display: block; padding: 10px 12px; gap: 0; margin-bottom: 10px; border-radius: 16px; }
+  .hero-text-block { display: none; }
+  .hero-sub, .eyebrow { display: none; }
+  .hero-stats-row { gap: 6px; }
+  .hero-stat { flex: 1 1 0; padding: 7px 4px; border-radius: 11px; }
+  .hero-stat strong { font-size: 17px; }
+  .hero-stat span { font-size: 10px; }
+  .hero-recommend { margin-top: 8px; padding-top: 8px; }
+  /* 推荐改成竖排：3 条都完整可见，不再靠横滑露出半张卡 */
+  .hero-recommend .today-rec-list {
+    flex-direction: column; flex-wrap: nowrap; overflow-x: visible;
+    gap: 5px; padding-bottom: 0;
+  }
+  .hero-recommend .today-rec-item {
+    flex: 1 1 auto; width: 100%; padding: 6px 8px; border-radius: 10px; gap: 8px;
+    min-height: 44px; cursor: pointer;
+  }
+  .today-rec-btn { min-height: 34px; }
+  .today-rec-name {
+    flex: 1 1 auto; min-width: 0; max-width: none; font-size: 12px;
+  }
+  /* 抽屉与工具栏里的按钮统一 44px 触控高度 */
+  .sidebar .qnav-btn,
+  .sidebar .chapter-nav button,
+  .sidebar #clearLocalDataBtn,
+  .toolbar-right button,
+  .filter-toggle { min-height: 44px; }
+  /* 侧边栏关闭键做成 44px 触控目标 */
+  .sidebar-close {
+    width: 44px; height: 44px; min-height: 44px; padding: 0;
+    display: grid; place-items: center; font-size: 16px;
+    background: transparent; border: 1px solid var(--line); color: var(--muted);
+    border-radius: 12px; -webkit-tap-highlight-color: transparent;
+  }
+  .results-info { margin: 0 4px 8px; font-size: 12px; }
+
+  /* ── 5. 卡片：贴屏幕、扁平的 App 列表观感 ── */
+  .formula-list { gap: 10px; }
+  .formula-card {
+    padding: 14px; border-radius: 16px;
+    box-shadow: 0 6px 16px rgba(74,45,15,.07);
+  }
+  .formula-title h3 { font-size: 17px; line-height: 1.35; }
+  .formula-head { gap: 8px; }
+  .formula { margin: 10px 0; padding: 10px 12px; border-radius: 12px; }
+  .card-actions { gap: 6px; width: 100%; }
+  .mastery-btn { flex: 1 1 0; min-height: 44px; padding: 0 6px; font-size: 12px; }
+  .fav-btn { flex: 0 0 auto; min-height: 44px; min-width: 44px; }
+  .intuition { font-size: 13.5px; line-height: 1.7; }
+  .detail-block { padding: 11px; }
+  summary { min-height: 44px; display: flex; align-items: center; }
+
+  /* 横滑区不再带动整页左右晃 */
+  .hero-recommend .today-rec-list,
+  .filter-row,
+  .toolbar-right,
+  .rel-row { overscroll-behavior-x: contain; }
+
+  /* ── 6. 底部标签栏：5 个等宽 tab，手指命中率高 ── */
+  .bottom-nav {
+    display: flex; justify-content: space-between; align-items: stretch; gap: 2px;
+    min-height: var(--bottom-nav-h); padding: 4px 6px;
+    padding-bottom: 4px;                                        /* 老浏览器兜底 */
+    padding-bottom: calc(4px + env(safe-area-inset-bottom, 0px));
+  }
+  .bnav-btn {
+    flex: 1 1 0; min-width: 0; min-height: 48px; padding: 6px 2px; gap: 1px;
+    justify-content: center; font-size: 19px; line-height: 1; border-radius: 14px;
+    -webkit-tap-highlight-color: transparent;
+    transition: background .15s, color .15s;
+  }
+  .bnav-btn span { font-size: 10px; line-height: 1.1; }
+  .bnav-btn.active { color: var(--accent); background: var(--panel-strong); }
+  .bnav-btn:active { background: var(--panel-strong); }
+
+  /* ── 7. 背诵模式：全屏专注，顶栏与搜索让位 ── */
+  body.recite-on .app-bar,
+  body.recite-on .toolbar { display: none; }
+  body.recite-on .main { padding-top: 8px; }
+  #reciteStage { padding-bottom: calc(132px + env(safe-area-inset-bottom, 0px)); }
+  .recite-bar {
+    bottom: var(--bottom-nav-h);                               /* 老浏览器兜底 */
+    bottom: calc(var(--bottom-nav-h) + env(safe-area-inset-bottom, 0px));
+  }
+  .recite-card { padding: 14px; border-radius: 16px; }
+  .recite-title-row h2 { font-size: 17px; }
+  .recite-btn { min-height: 48px; }
+
+  /* ── 8. 触感：点按反馈一致 ── */
+  .bnav-btn, .qnav-btn, .mastery-btn, .btn-ghost, .btn-primary,
+  .today-rec-btn, .rel-chip, .error-tag, .lab-card, .privacy-reset-btn {
+    -webkit-tap-highlight-color: transparent;
+  }
+  .mastery-btn:active, .btn-ghost:active, .btn-primary:active,
+  .today-rec-btn:active, .error-tag:active, .rel-chip:active { transform: scale(.97); }
+}
