@@ -9,7 +9,7 @@ All notable changes are tracked here. This project follows a pragmatic changelog
 - Fixed the mobile drawer stacking: `.app-shell` (`z-index: 0` + `isolation: isolate`) trapped the fixed sidebar below the root-level scrim, so the drawer rendered dimmed and its `✕` close button received no taps (verified broken on the deployed build). The mobile shell drops that stacking context and the scrim now covers only the strip to the right of the drawer.
 - Recommendations now stack vertically on phones, filters fold into a 2-column drawer, and the sidebar close button plus every bottom tab meet the 44px touch target.
 - Added safe-area fallbacks (`env(safe-area-inset-*)` always preceded by a plain declaration) for the top bar, search row, bottom bar, recite bar, drawer, and content padding.
-- Bumped static app metadata and cache-busted assets to `1.2.0` for the phone app shell.
+- Bumped static app metadata and cache-busted assets to `1.2.1` for the phone app shell.
 
 - Published this copy under `kosermuy-maker/Codex-for-learning-math` so GitHub Pages deploys to `https://kosermuy-maker.github.io/Codex-for-learning-math/handbook/`.
 - Bumped static app metadata and cache-busted assets to `1.1.0` for the windowed renderer and mobile recite layout.

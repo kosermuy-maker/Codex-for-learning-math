@@ -7,7 +7,7 @@
 | Metric | Value |
 | --- | --- |
 | Package | codex-for-learning-math |
-| Version | 1.2.0 |
+| Version | 1.2.1 |
 | License | MIT |
 | Homepage | https://kosermuy-maker.github.io/Codex-for-learning-math/handbook/ |
 | Node | >=24 |
