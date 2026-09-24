@@ -9,20 +9,29 @@
   <meta property="og:type" content="website" />
   <meta property="og:title" content="考研数学一学习工作台 · 494 张交互公式卡" />
   <meta property="og:description" content="高数、线代、概率统计 494 张公式卡，含适用条件、直觉、证明、易错点与 15 种交互演示。" />
-  <meta property="og:image" content="./preview.png?v=1.0.3" />
-  <meta name="app-version" content="1.0.3" />
+  <meta property="og:image" content="./preview.png?v=1.1.0" />
+  <meta name="app-version" content="1.1.0" />
   <link rel="icon" href="data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 64 64'%3E%3Crect width='64' height='64' rx='14' fill='%23fff4dc'/%3E%3Ctext x='32' y='42' font-size='38' text-anchor='middle' fill='%23b45f06'%3E%E2%88%91%3C/text%3E%3C/svg%3E" />
-  <link rel="stylesheet" href="./styles.css?v=1.0.3" />
+  <link rel="apple-touch-icon" href="./icon.svg" />
+  <link rel="manifest" href="./manifest.webmanifest" />
+  <meta name="apple-mobile-web-app-capable" content="yes" />
+  <meta name="apple-mobile-web-app-title" content="数学一公式" />
+  <link rel="stylesheet" href="./styles.css?v=1.1.0" />
   <script>
     window.MathJax = {
       tex: { inlineMath: [['$', '$'], ['\\(', '\\)']], displayMath: [['\\[', '\\]']] },
+      output: {
+        // MathJax 4 起支持自动折行：长公式在容器宽度内折行，折不动时由 .formula 内部横向滚动兜底
+        displayOverflow: 'linebreak',
+        linebreaks: { inline: true, width: '100%', lineleading: 0.15 }
+      },
       options: { skipHtmlTags: ['script', 'noscript', 'style', 'textarea', 'pre', 'code'] }
     };
   </script>
-  <script defer src="https://cdn.jsdelivr.net/npm/mathjax@3/es5/tex-chtml.js"></script>
-  <script defer src="./study-layer.js?v=1.0.3"></script>
-  <script defer src="./formula-data.js?v=1.0.3"></script>
-  <script defer src="./app.js?v=1.0.3"></script>
+  <script defer src="https://cdn.jsdelivr.net/npm/mathjax@4/tex-chtml.js"></script>
+  <script defer src="./study-layer.js?v=1.1.0"></script>
+  <script defer src="./formula-data.js?v=1.1.0"></script>
+  <script defer src="./app.js?v=1.1.0"></script>
 </head>
 <body>
   <!-- 移动端侧边栏遮罩 -->
@@ -69,7 +78,7 @@
       <section class="hero">
         <div class="hero-text-block">
           <p class="eyebrow">考研数学一 · 静态 JS 版</p>
-          <h2>把公式从"背不动"变成"看得懂、搜得到、会使用"。</h2>
+          <h2><span class="hero-long">把公式从"背不动"变成"看得懂、搜得到、会使用"。</span><span class="hero-short">数学一公式</span></h2>
           <p class="hero-sub">覆盖高数、线代、概率统计；重点公式含适用条件、直觉解释、简短证明、例子、易错点与交互演示。</p>
         </div>
         <div class="hero-stats-row">
@@ -87,35 +96,38 @@
           <span>🔍 搜索</span>
           <input id="searchInput" type="search" placeholder="华里士、等价无穷小、Green、正定、卷积…" />
         </label>
-        <label>
-          重要程度
-          <select id="importanceFilter">
-            <option value="all">全部</option>
-            <option value="必背">必背</option>
-            <option value="常用">常用</option>
-            <option value="技巧">技巧</option>
-            <option value="了解">了解</option>
-            <option value="拓展">拓展</option>
-          </select>
-        </label>
-        <label>
-          标签
-          <select id="tagFilter"><option value="all">全部</option></select>
-        </label>
-        <label>
-          掌握度
-          <select id="masteryFilter">
-            <option value="all">全部</option>
-            <option value="0">未学</option>
-            <option value="1">认识</option>
-            <option value="2">掌握</option>
-          </select>
-        </label>
+        <div class="filter-row">
+          <label>
+            重要程度
+            <select id="importanceFilter">
+              <option value="all">全部</option>
+              <option value="必背">必背</option>
+              <option value="常用">常用</option>
+              <option value="技巧">技巧</option>
+              <option value="了解">了解</option>
+              <option value="拓展">拓展</option>
+            </select>
+          </label>
+          <label>
+            标签
+            <select id="tagFilter"><option value="all">全部</option></select>
+          </label>
+          <label>
+            掌握度
+            <select id="masteryFilter">
+              <option value="all">全部</option>
+              <option value="0">未学</option>
+              <option value="1">认识</option>
+              <option value="2">掌握</option>
+            </select>
+          </label>
+        </div>
         <div class="toolbar-right">
           <button id="resetFilters" class="btn-ghost" type="button">重置</button>
           <button id="onlyInteractiveBtn" class="btn-ghost" type="button" title="只看有交互演示的卡">🔬 只看演示</button>
           <button id="reviewModeBtn" class="btn-ghost" type="button">📖 复习模式</button>
           <button id="flashModeBtn" class="btn-ghost" type="button">🃏 闪卡模式</button>
+          <button id="reciteModeBtn" class="btn-ghost" type="button" title="一屏一张，先看题再回忆公式">🧠 背诵</button>
         </div>
       </section>
 
@@ -130,6 +142,9 @@
 
       <!-- 结果信息 -->
       <section id="resultsInfo" class="results-info" aria-live="polite" aria-atomic="true"></section>
+
+      <!-- 背诵模式：一屏一张，正面题面 / 背面公式与解释 -->
+      <section id="reciteStage" class="recite-stage hidden" aria-label="背诵模式"></section>
 
       <!-- 视图容器：公式卡 / 实验室 / 今日复习 / 错题归因 -->
       <section id="viewCards" class="view-section">
@@ -183,6 +198,7 @@
     <button class="bnav-btn" data-view="labs">🔬<span>实验室</span></button>
     <button class="bnav-btn" data-view="review">📅<span>复习</span></button>
     <button class="bnav-btn" data-view="errors">🎯<span>归因</span></button>
+    <button id="reciteNavBtn" class="bnav-btn" type="button" aria-label="背诵模式">🧠<span>背诵</span></button>
     <button id="mobileMenuBtn" class="bnav-btn">☰<span>目录</span></button>
   </nav>
 </body>

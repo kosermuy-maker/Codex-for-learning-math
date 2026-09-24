@@ -4,6 +4,16 @@ All notable changes are tracked here. This project follows a pragmatic changelog
 
 ## Unreleased
 
+- Published this copy under `kosermuy-maker/Codex-for-learning-math` so GitHub Pages deploys to `https://kosermuy-maker.github.io/Codex-for-learning-math/handbook/`.
+- Bumped static app metadata and cache-busted assets to `1.1.0` for the windowed renderer and mobile recite layout.
+- Windowed the card lists: the first 16 cards render up front and an `IntersectionObserver` sentinel appends the next window while scrolling, so the first screen no longer builds and typesets all 494 cards at once.
+- Moved MathJax to version 4 with `output.displayOverflow: linebreak`, so long formulas wrap inside their container; formulas that still cannot wrap scroll inside the formula block and show a swipe hint instead of widening the page.
+- MathJax now typesets only the formulas that enter the viewport, with a retry pass if the CDN lands late; raw LaTeX stays readable offline.
+- Mounted the study layer, usage, examples, mistakes, and lab demos on the first `<details>` expand instead of emitting them for all 494 cards up front.
+- Added a mobile recite mode (`#reciteStage`): one card per screen, reveal in two steps, fixed previous/reveal/mastery/next bar, swipe paging, and its own `kaoyan-math-recite-v1` localStorage entry.
+- Tightened the sub-860px layout: the hero, toolbar, and keyboard hint no longer consume the first screen, the filters scroll in one row, and 16px inputs stop iOS from zooming on focus.
+- Added `handbook/manifest.webmanifest` and `handbook/icon.svg` so the handbook can be added to a phone home screen and opened as a standalone app, and shipped both through the Pages artifact.
+- Rewrote the browser smoke contracts for windowed rendering and added a full-corpus MathJax check that typesets all 494 formulas and fails on any `mjx-merror`.
 - Replaced the corrupted root `README.md` with a clean bilingual project overview and maintenance guide.
 - Added `project-health.js`, generated `PROJECT_HEALTH.md`, and wired the health report into `npm run verify` and generated-output drift checks.
 - Added `doctor.js` and `npm run doctor` to distinguish required repository problems from optional local tooling gaps such as missing Playwright.

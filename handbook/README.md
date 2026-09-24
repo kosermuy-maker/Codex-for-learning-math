@@ -33,6 +33,8 @@
 | `quality-check.js` | 成熟度质量门禁：检查学习深度层、实验室直达、关键交互类型覆盖 |
 | `browser-smoke.js` | Real browser acceptance test for desktop/mobile, MathJax, sidebar scrolling, lab demos, actual lab control interactions, keyboard entry points, and basic accessibility |
 | `link-check.js` | Local link and metadata gate for Markdown links, HTML assets, required project files, package metadata, and Node version alignment |
+| `manifest.webmanifest` | PWA 清单：`display: standalone`，让手机「添加到主屏幕」后以独立窗口打开 |
+| `icon.svg` | 主屏幕图标（与 favicon 同一枚 ∑ 标记） |
 
 生成的 Markdown 文档（不要手动编辑，运行 `node handbook/generate-docs.js` 重新生成）：
 
@@ -77,6 +79,22 @@ npx http-server handbook
 ```
 
 然后访问 `http://localhost:3000`（或终端提示的端口）。
+
+---
+
+## 手机使用（加到主屏幕）
+
+线上地址：`https://kosermuy-maker.github.io/Codex-for-learning-math/handbook/`
+
+1. 用手机系统浏览器（Safari / Chrome）打开上面的地址；不要用电脑上的 `127.0.0.1:9527` 启动器地址，它只在这台电脑上有效。
+2. iOS Safari：分享 → 添加到主屏幕；Android Chrome：菜单 → 添加到主屏幕 / 安装应用。
+3. `manifest.webmanifest` 声明了 `display: standalone`，加到主屏幕后以独立窗口打开，没有浏览器地址栏。
+
+手机上推荐用「🧠 背诵」模式（工具栏与底部导航都有入口）：一屏一张，正面只有章节、标题和重要程度；第一次点「揭开」显示公式，第二次点展开用法与易错点。底栏固定「上一张 / 揭开 / 掌握 / 下一张」，左右滑动超过 48px 也可以翻卡，竖滑仍然是页面滚动。
+
+窄屏下长公式优先在公式块宽度内自动折行；实在折不动时只有公式块内部左右滑动，并会显示「← 左右滑动看全式 →」提示，整页不会出现横向滚动条。
+
+首次打开需要联网（MathJax 从 jsDelivr CDN 加载），目前不注册 service worker：离线时排版不可用，公式以原始 LaTeX 文本形式可读。
 
 ---
 

@@ -3,13 +3,13 @@
 > 考研数学一交互公式手册：把公式、证明思路、使用场景、例题、易错点和可视化实验室放进一个纯静态学习工作台。  
 > Interactive Math I formula handbook for postgraduate entrance exam review, built as a searchable static learning workspace.
 
-[![Verify handbook](https://github.com/ULing19/Codex-for-learning-math/actions/workflows/verify.yml/badge.svg)](https://github.com/ULing19/Codex-for-learning-math/actions/workflows/verify.yml)
-[![Deploy Pages](https://github.com/ULing19/Codex-for-learning-math/actions/workflows/pages.yml/badge.svg)](https://github.com/ULing19/Codex-for-learning-math/actions/workflows/pages.yml)
+[![Verify handbook](https://github.com/kosermuy-maker/Codex-for-learning-math/actions/workflows/verify.yml/badge.svg)](https://github.com/kosermuy-maker/Codex-for-learning-math/actions/workflows/verify.yml)
+[![Deploy Pages](https://github.com/kosermuy-maker/Codex-for-learning-math/actions/workflows/pages.yml/badge.svg)](https://github.com/kosermuy-maker/Codex-for-learning-math/actions/workflows/pages.yml)
 [![License: MIT](https://img.shields.io/badge/License-MIT-blue.svg)](./LICENSE)
-[![Static Site](https://img.shields.io/badge/site-GitHub%20Pages-2ea44f.svg)](https://uling19.github.io/Codex-for-learning-math/handbook/)
+[![Static Site](https://img.shields.io/badge/site-GitHub%20Pages-2ea44f.svg)](https://kosermuy-maker.github.io/Codex-for-learning-math/handbook/)
 [![No Build](https://img.shields.io/badge/build-none-success.svg)](#quick-start)
 
-[在线访问 / Live Demo](https://uling19.github.io/Codex-for-learning-math/handbook/) ·
+[在线访问 / Live Demo](https://kosermuy-maker.github.io/Codex-for-learning-math/handbook/) ·
 [维护手册 / Maintainer Guide](./handbook/README.md) ·
 [架构说明 / Architecture](./ARCHITECTURE.md) ·
 [内容治理 / Content Governance](./CONTENT_GOVERNANCE.md) ·
@@ -235,7 +235,7 @@ GitHub Pages deployment is handled by `.github/workflows/pages.yml`:
 Live site:
 
 ```text
-https://uling19.github.io/Codex-for-learning-math/handbook/
+https://kosermuy-maker.github.io/Codex-for-learning-math/handbook/
 ```
 
 ## Contributing

@@ -12,7 +12,7 @@ This roadmap keeps the project oriented toward a mature, reliable, open-source l
 - Lab types: 15.
 - Main quality command: `npm run verify`.
 - Browser acceptance: `npm run verify:browser` and `npm run verify:browser:live`.
-- Live site: https://uling19.github.io/Codex-for-learning-math/handbook/
+- Live site: https://kosermuy-maker.github.io/Codex-for-learning-math/handbook/
 
 ## Priority 1: Content Reliability / 内容可靠性
 

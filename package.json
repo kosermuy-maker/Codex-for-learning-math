@@ -1,16 +1,16 @@
 {
   "name": "codex-for-learning-math",
-  "version": "1.0.3",
+  "version": "1.1.0",
   "private": false,
   "description": "考研数学一交互公式手册 / Interactive Math I formula handbook",
   "license": "MIT",
-  "homepage": "https://uling19.github.io/Codex-for-learning-math/handbook/",
+  "homepage": "https://kosermuy-maker.github.io/Codex-for-learning-math/handbook/",
   "repository": {
     "type": "git",
-    "url": "git+https://github.com/ULing19/Codex-for-learning-math.git"
+    "url": "git+https://github.com/kosermuy-maker/Codex-for-learning-math.git"
   },
   "bugs": {
-    "url": "https://github.com/ULing19/Codex-for-learning-math/issues"
+    "url": "https://github.com/kosermuy-maker/Codex-for-learning-math/issues"
   },
   "engines": {
     "node": ">=24"
@@ -29,7 +29,7 @@
     "pages:prepare": "node handbook/prepare-pages.js",
     "verify": "npm run check:syntax && npm run validate && npm run docs && npm run coverage && npm run health && npm run generated:check && npm run smoke && npm run quality && npm run links && npm run repo:hygiene && npm run pages:prepare",
     "verify:browser": "node handbook/browser-smoke.js",
-    "verify:browser:live": "node -e \"process.env.BROWSER_SMOKE_BASE_URL='https://uling19.github.io/Codex-for-learning-math/handbook'; require('./handbook/browser-smoke.js')\"",
+    "verify:browser:live": "node -e \"process.env.BROWSER_SMOKE_BASE_URL='https://kosermuy-maker.github.io/Codex-for-learning-math/handbook'; require('./handbook/browser-smoke.js')\"",
     "verify:deploy": "node handbook/deploy-health.js",
     "generated:check": "node handbook/generated-check.js",
     "repo:hygiene": "node handbook/repo-hygiene.js"

@@ -47,7 +47,7 @@ If you need to clear manually:
 2. Go to Application/Storage → Local Storage.
 3. Delete `math1_mastery_v1` and `math1_favorites_v1`.
 
-You can also clear site data for `uling19.github.io`, but that may remove other local data from the same GitHub Pages origin.
+You can also clear site data for `kosermuy-maker.github.io`, but that may remove other local data from the same GitHub Pages origin.
 
 ## For Contributors / 给贡献者
 

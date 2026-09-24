@@ -16,7 +16,7 @@ Use this checklist before treating a version as stable.
 - [ ] `COVERAGE.md` is regenerated and reports `PASS: coverage gate satisfied`.
 - [ ] GitHub Actions `Verify handbook` is green on `main`.
 - [ ] GitHub Actions `Deploy Pages` is green and GitHub Pages is configured for workflow deployment.
-- [ ] The live site opens at `https://uling19.github.io/Codex-for-learning-math/handbook/`.
+- [ ] The live site opens at `https://kosermuy-maker.github.io/Codex-for-learning-math/handbook/`.
 - [ ] Lab overview opens a lab directly into a mounted demo on desktop and mobile.
 - [ ] MathJax reports zero `mjx-merror` nodes in browser smoke.
 - [ ] Generated Markdown files are updated when formula data changes.

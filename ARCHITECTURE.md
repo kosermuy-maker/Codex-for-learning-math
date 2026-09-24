@@ -43,8 +43,10 @@ When changing content, edit `formula-data.js`, then run `npm run verify`. Do not
 1. `index.html` loads MathJax, `study-layer.js`, `formula-data.js`, and `app.js`.
 2. `formula-data.js` registers `window.FORMULA_CARDS` and `window.FORMULA_GROUPS`.
 3. `app.js` builds navigation, cards, search results, mastery state, recommendations, and labs.
-4. Mastery, favorites, and review queues live in browser `localStorage`.
-5. Interactive labs render with inline SVG/DOM controls. They are teaching aids, not symbolic calculators.
+4. Card lists are windowed: only the first 16 cards render up front, and an `IntersectionObserver` sentinel appends the next window as the reader scrolls. MathJax typesets only the formulas that enter the viewport (`rootMargin: 600px`), and the study layer mounts on the first `<details>` expand. Raw LaTeX stays readable when MathJax is unavailable.
+5. Recite mode (`#reciteStage`) shows one card per screen: prompt first, formula on the first reveal, usage and mistakes on the second.
+6. Mastery, favorites, recite position, and review queues live in browser `localStorage`.
+7. Interactive labs render with inline SVG/DOM controls. They are teaching aids, not symbolic calculators.
 
 ## Data Model / 公式卡模型
 

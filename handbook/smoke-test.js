@@ -59,6 +59,18 @@ class FakeElement {
   set innerHTML(value) { this._innerHTML = String(value ?? ""); }
   get innerHTML() { return this._innerHTML; }
   appendChild(child) { this.children.push(child); return child; }
+  // 窗口渲染用到的 DOM API：测试替身只需把它们记进 _innerHTML 即可
+  insertAdjacentHTML(position, html) {
+    if (position === "beforebegin" || position === "afterbegin") this._innerHTML = html + this._innerHTML;
+    else this._innerHTML += html;
+  }
+  insertAdjacentElement(position, element) {
+    if (position === "beforebegin" || position === "afterbegin") this.children.unshift(element);
+    else this.children.push(element);
+    return element;
+  }
+  remove() { this.removed = true; }
+  getBoundingClientRect() { return { width: 0, height: 0, top: 0, left: 0, bottom: 0, right: 0 }; }
   addEventListener(type, handler) { this.listeners[type] = handler; }
   setAttribute(name, value) { this[name] = value; }
   querySelectorAll() { return []; }
@@ -113,7 +125,7 @@ const sandbox = {
   document: { ...fakeDocument, body: fakeBody, activeElement: { tagName: "BODY" } },
   localStorage: { getItem: () => null, setItem: () => {}, removeItem: () => {} },
   requestAnimationFrame: (fn) => fn(),
-  console, Math, setTimeout, clearTimeout
+  console, Math, setTimeout, clearTimeout, setInterval, clearInterval
 };
 sandbox.window.window = sandbox.window;
 sandbox.window.document = sandbox.document;
@@ -135,8 +147,9 @@ if (!Number.isFinite(labCount) || labCount <= 0)
 if (!elements.get("formulaList").innerHTML.includes("formula-card"))
   throw new Error("formulaList did not render formula cards");
 
-if (!elements.get("formulaList").innerHTML.includes("db-study"))
-  throw new Error("formula cards did not render the study layer");
+// 学习拆解改为展开时挂载：首屏只要求出现懒挂载骨架（不再要求 494 个 .db-study 常驻 DOM）
+if (!elements.get("formulaList").innerHTML.includes("card-details-core"))
+  throw new Error("formula cards did not render the lazy details skeleton");
 
 if (!elements.get("heroRecommend").innerHTML)
   throw new Error("heroRecommend was not populated during init");

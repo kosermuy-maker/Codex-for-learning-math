@@ -119,13 +119,13 @@ function checkPackageMetadata() {
   const pkg = JSON.parse(readUtf8(path.join(root, "package.json")));
   assert.strictEqual(pkg.private, false, "package.json should be publish-safe/open-source marked with private=false");
   assert.strictEqual(pkg.license, "MIT", "package.json license should be MIT");
-  assert.strictEqual(pkg.homepage, "https://uling19.github.io/Codex-for-learning-math/handbook/", "package.json homepage should point to GitHub Pages handbook");
+  assert.strictEqual(pkg.homepage, "https://kosermuy-maker.github.io/Codex-for-learning-math/handbook/", "package.json homepage should point to GitHub Pages handbook");
   assert.deepStrictEqual(pkg.repository, {
     type: "git",
-    url: "git+https://github.com/ULing19/Codex-for-learning-math.git"
+    url: "git+https://github.com/kosermuy-maker/Codex-for-learning-math.git"
   }, "package.json repository should point to the GitHub repo");
   assert.deepStrictEqual(pkg.bugs, {
-    url: "https://github.com/ULing19/Codex-for-learning-math/issues"
+    url: "https://github.com/kosermuy-maker/Codex-for-learning-math/issues"
   }, "package.json bugs should point to GitHub issues");
   assert.strictEqual(pkg.engines?.node, ">=24", "package.json engines.node should stay aligned to CI");
   const nvmrc = readUtf8(path.join(root, ".nvmrc")).trim();

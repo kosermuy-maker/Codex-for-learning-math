@@ -22,6 +22,7 @@ const mime = {
   ".png": "image/png",
   ".svg": "image/svg+xml; charset=utf-8",
   ".json": "application/json; charset=utf-8",
+  ".webmanifest": "application/manifest+json; charset=utf-8",
   ".md": "text/markdown; charset=utf-8"
 };
 
@@ -235,9 +236,11 @@ async function runViewport(browser, baseUrl, viewport) {
 
   const initial = await page.evaluate(() => ({
     cards: document.querySelectorAll("#formulaList .formula-card").length,
+    totalCards: (window.FORMULA_CARDS || []).length,
     studyBlocks: document.querySelectorAll(".db-study").length,
     labs: document.querySelectorAll("#labsGrid .lab-card").length,
     mathErrors: document.querySelectorAll("mjx-merror").length,
+    typesetContainers: document.querySelectorAll("#formulaList mjx-container").length,
     hasStudyLayer: Boolean(window.FORMULA_STUDY_LAYER?.buildStudyLayer),
     mathJaxLoaded: Boolean(window.MathJax?.typesetPromise),
     bottomNavVisible: getComputedStyle(document.querySelector(".bottom-nav")).display !== "none",
@@ -247,8 +250,11 @@ async function runViewport(browser, baseUrl, viewport) {
     ogImage: document.querySelector('meta[property="og:image"]')?.getAttribute("content") || ""
   }));
 
-  assert.strictEqual(initial.cards, 494, `${viewport.name}: should render 494 formula cards`);
-  assert.strictEqual(initial.studyBlocks, 494, `${viewport.name}: should render one study layer per card`);
+  // 列表窗口化：首屏只渲染一个窗口，公式按视口懒排版，学习拆解展开才挂载
+  assert.strictEqual(initial.totalCards, 494, `${viewport.name}: formula data should expose 494 cards`);
+  assert.strictEqual(initial.cards, Math.min(16, initial.totalCards), `${viewport.name}: first screen should render exactly one card window`);
+  assert.strictEqual(initial.studyBlocks, 0, `${viewport.name}: study layers should stay unmounted until a card is expanded`);
+  assert(initial.typesetContainers > 0, `${viewport.name}: visible formulas should be typeset by MathJax`);
   assert.strictEqual(initial.mathErrors, 0, `${viewport.name}: MathJax should not report formula errors`);
   assert.strictEqual(initial.hasStudyLayer, true, `${viewport.name}: study-layer.js should load`);
   assert.strictEqual(initial.appVersion, expectedAppVersion, `${viewport.name}: app-version should match package.json`);
@@ -259,6 +265,66 @@ async function runViewport(browser, baseUrl, viewport) {
     assert(href.includes(`v=${expectedAppVersion}`), `${viewport.name}: local stylesheet should be versioned: ${href}`);
   }
   assert(initial.ogImage.includes(`v=${expectedAppVersion}`), `${viewport.name}: og:image should be versioned`);
+
+  // 全量公式语料：懒排版后首屏只覆盖可见卡，这里把 494 条 LaTeX 全排一次，确认没有 mjx-merror。
+  // 排版错误与视口无关，只在桌面视口跑一次。包装字符串必须与 app.js renderCard 的 .formula 内容保持一致。
+  if (!viewport.mobile) {
+    const mathCorpus = await page.evaluate(async () => {
+      const holder = document.createElement("div");
+      holder.id = "math-corpus-probe";
+      holder.setAttribute("aria-hidden", "true");
+      holder.style.cssText = "position:absolute;left:-10000px;top:0;width:360px;";
+      document.body.appendChild(holder);
+      const corpus = window.FORMULA_CARDS || [];
+      holder.innerHTML = corpus.map(() => '<div class="formula"></div>').join("");
+      const nodes = [...holder.querySelectorAll(".formula")];
+      corpus.forEach((card, index) => {
+        nodes[index].textContent = "\\[\\begin{gathered}" + card.latex + "\\end{gathered}\\]";
+      });
+      await window.MathJax.typesetPromise(nodes);
+      const errors = [...holder.querySelectorAll("mjx-merror")]
+        .map((node) => node.closest(".formula")?.textContent.slice(0, 60) || "unknown");
+      const rendered = holder.querySelectorAll("mjx-container").length;
+      holder.remove();
+      return { total: corpus.length, rendered, errors: errors.slice(0, 8), errorCount: errors.length };
+    });
+    assert.strictEqual(mathCorpus.rendered, mathCorpus.total, `${viewport.name}: every formula should render a MathJax container`);
+    assert.strictEqual(mathCorpus.errorCount, 0, `${viewport.name}: no formula should produce mjx-merror: ${mathCorpus.errors.join(" | ")}`);
+  }
+
+  // 滚动到列表哨兵后窗口继续追加
+  const windowGrowth = await page.evaluate(async () => {
+    const list = document.querySelector("#formulaList");
+    const before = list.querySelectorAll(".formula-card").length;
+    window.scrollTo(0, document.documentElement.scrollHeight);
+    await new Promise((resolve) => setTimeout(resolve, 700));
+    const after = list.querySelectorAll(".formula-card").length;
+    window.scrollTo(0, 0);
+    await new Promise((resolve) => setTimeout(resolve, 200));
+    return { before, after };
+  });
+  assert(windowGrowth.after > windowGrowth.before, `${viewport.name}: the list sentinel should append more cards (${windowGrowth.before} -> ${windowGrowth.after})`);
+
+  // 学习拆解：展开前不挂载，展开后出现用法/学习拆解
+  const lazyDetails = await page.evaluate(async () => {
+    const details = document.querySelector("#formulaList .formula-card details.card-details-core");
+    const before = document.querySelectorAll(".db-study").length;
+    details.open = true;
+    await new Promise((resolve) => setTimeout(resolve, 400));
+    const result = {
+      before,
+      after: document.querySelectorAll(".db-study").length,
+      mounted: details.dataset.detailsMounted === "true",
+      hasUsage: Boolean(details.querySelector(".db-how")),
+      hasMistakes: Boolean(details.querySelector(".db-mis"))
+    };
+    details.open = false;
+    return result;
+  });
+  assert.strictEqual(lazyDetails.before, 0, `${viewport.name}: study layer should not be mounted before expanding a card`);
+  assert.strictEqual(lazyDetails.mounted, true, `${viewport.name}: expanding a card should mount its details`);
+  assert(lazyDetails.after >= 1 && lazyDetails.hasUsage, `${viewport.name}: expanded card should render usage and study blocks`);
+  assert.strictEqual(lazyDetails.hasMistakes, true, `${viewport.name}: expanded card should render the mistakes block`);
 
   const accessibility = await page.evaluate(() => {
     const visible = (element) => {
@@ -336,6 +402,30 @@ async function runViewport(browser, baseUrl, viewport) {
     assert.strictEqual(localDataReset.mastery, null, `${viewport.name}: clear local data should remove mastery storage`);
     assert.strictEqual(localDataReset.favorites, null, `${viewport.name}: clear local data should remove favorites storage`);
     assert(localDataReset.notice.includes("已清除"), `${viewport.name}: clear local data should show reset notice`);
+
+    // 搜索仍然出卡；掌握度与收藏仍然写回原来的 localStorage 键
+    await page.fill("#searchInput", "洛必达");
+    await page.waitForTimeout(600);
+    const searchState = await page.evaluate(() => ({
+      cards: document.querySelectorAll("#formulaList .formula-card").length,
+      highlighted: document.querySelectorAll("#formulaList mark.highlight").length
+    }));
+    assert(searchState.cards > 0, `${viewport.name}: searching 洛必达 should still return cards`);
+    assert(searchState.highlighted > 0, `${viewport.name}: search hits should be highlighted in the card list`);
+
+    await page.click("#formulaList .formula-card .mastery-btn");
+    await page.click("#formulaList .formula-card .fav-btn");
+    const storageWrite = await page.evaluate(() => ({
+      mastery: localStorage.getItem("math1_mastery_v1") || "",
+      favorites: localStorage.getItem("math1_favorites_v1") || "",
+      label: document.querySelector("#formulaList .formula-card .mastery-btn")?.textContent.trim() || ""
+    }));
+    assert(storageWrite.mastery.length > 2 && storageWrite.mastery !== "{}", `${viewport.name}: mastery button should write math1_mastery_v1`);
+    assert(storageWrite.favorites.startsWith("[") && storageWrite.favorites.length > 2, `${viewport.name}: favorite button should write math1_favorites_v1`);
+    assert(storageWrite.label.startsWith("认识"), `${viewport.name}: mastery button should advance to 认识`);
+
+    await page.click("#resetFilters");
+    await page.waitForTimeout(400);
   }
 
   if (viewport.mobile) {
@@ -375,6 +465,94 @@ async function runViewport(browser, baseUrl, viewport) {
     assert.strictEqual(bottomNavHitTarget.visible, true, `${viewport.name}: bottom lab navigation should be visible`);
     assert.strictEqual(bottomNavHitTarget.largeEnough, true, `${viewport.name}: bottom lab navigation should meet touch target size`);
     assert.strictEqual(bottomNavHitTarget.topHit, true, `${viewport.name}: bottom lab navigation should be the top hit target`);
+
+    // ── 背诵模式（手机版式核心路径）──
+    const reciteEntry = await page.evaluate(() => {
+      const button = document.querySelector("#reciteNavBtn");
+      const rect = button.getBoundingClientRect();
+      const target = document.elementFromPoint(rect.left + rect.width / 2, rect.top + rect.height / 2);
+      return {
+        visible: rect.width > 0 && rect.height > 0,
+        largeEnough: rect.width >= 44 && rect.height >= 44,
+        topHit: target === button || button.contains(target)
+      };
+    });
+    assert.strictEqual(reciteEntry.visible, true, `${viewport.name}: recite entry should be visible`);
+    assert.strictEqual(reciteEntry.largeEnough, true, `${viewport.name}: recite entry should meet touch target size`);
+    assert.strictEqual(reciteEntry.topHit, true, `${viewport.name}: recite entry should be the top hit target`);
+
+    await page.click("#reciteNavBtn");
+    await page.waitForSelector("#reciteStage:not(.hidden) .recite-card", { timeout: 10000 });
+    const reciteFront = await page.evaluate(() => ({
+      cardsHidden: document.querySelector("#viewCards")?.classList.contains("hidden"),
+      prompt: Boolean(document.querySelector("#reciteStage .recite-prompt")),
+      formulas: document.querySelectorAll("#reciteStage .formula").length,
+      progress: document.querySelector("#reciteStage .recite-progress")?.textContent.trim() || "",
+      docScrollWidth: document.documentElement.scrollWidth,
+      innerWidth: window.innerWidth,
+      barButtons: [...document.querySelectorAll("#reciteStage .recite-btn")].map((button) => {
+        const rect = button.getBoundingClientRect();
+        return { label: button.textContent.trim(), ok: rect.width > 0 && rect.height >= 44 };
+      })
+    }));
+    assert.strictEqual(reciteFront.cardsHidden, true, `${viewport.name}: recite mode should hide the card list`);
+    assert.strictEqual(reciteFront.prompt, true, `${viewport.name}: recite front should ask for the formula first`);
+    assert.strictEqual(reciteFront.formulas, 0, `${viewport.name}: recite front should not reveal the formula`);
+    assert(/^1 \/ \d+$/.test(reciteFront.progress), `${viewport.name}: recite progress should show the position`);
+    assert.strictEqual(reciteFront.barButtons.length, 4, `${viewport.name}: recite bar should expose four actions`);
+    assert(reciteFront.barButtons.every((button) => button.ok), `${viewport.name}: recite bar buttons should all be >=44px: ${JSON.stringify(reciteFront.barButtons)}`);
+    assert(reciteFront.docScrollWidth <= reciteFront.innerWidth + 1, `${viewport.name}: recite front should not widen the page`);
+
+    await page.click('#reciteStage [data-recite="reveal"]');
+    const reciteRevealed = await page.evaluate(async () => {
+      const stage = document.querySelector("#reciteStage");
+      for (let attempt = 0; attempt < 40; attempt += 1) {
+        if (stage.querySelector("mjx-container")) break;
+        await new Promise((resolve) => setTimeout(resolve, 100));
+      }
+      return {
+        formulas: stage.querySelectorAll(".formula").length,
+        typeset: stage.querySelectorAll("mjx-container").length,
+        detailsHidden: stage.querySelector(".recite-detail")?.classList.contains("hidden"),
+        docScrollWidth: document.documentElement.scrollWidth,
+        innerWidth: window.innerWidth,
+        formulaWidth: Math.round(stage.querySelector(".formula")?.getBoundingClientRect().width || 0)
+      };
+    });
+    assert.strictEqual(reciteRevealed.formulas, 1, `${viewport.name}: first reveal should show one formula`);
+    assert(reciteRevealed.typeset >= 1, `${viewport.name}: revealed formula should be typeset by MathJax`);
+    assert.strictEqual(reciteRevealed.detailsHidden, true, `${viewport.name}: usage should stay hidden until the second reveal`);
+    assert(reciteRevealed.formulaWidth <= reciteRevealed.innerWidth, `${viewport.name}: recite formula box should fit the viewport`);
+    assert(reciteRevealed.docScrollWidth <= reciteRevealed.innerWidth + 1, `${viewport.name}: recite formula should not widen the page (${reciteRevealed.docScrollWidth} > ${reciteRevealed.innerWidth})`);
+
+    await page.click('#reciteStage [data-recite="reveal"]');
+    const reciteExpanded = await page.evaluate(() => ({
+      detailsHidden: document.querySelector("#reciteStage .recite-detail")?.classList.contains("hidden"),
+      hasUsage: Boolean(document.querySelector("#reciteStage .db-how")),
+      hasMistakes: Boolean(document.querySelector("#reciteStage .db-mis"))
+    }));
+    assert.strictEqual(reciteExpanded.detailsHidden, false, `${viewport.name}: second reveal should show the explanation`);
+    assert(reciteExpanded.hasUsage && reciteExpanded.hasMistakes, `${viewport.name}: second reveal should include usage and mistakes`);
+
+    const reciteBefore = await page.evaluate(() => document.querySelector("#reciteStage .recite-progress").textContent.trim());
+    await page.click('#reciteStage [data-recite="next"]');
+    const reciteAfter = await page.evaluate(() => ({
+      progress: document.querySelector("#reciteStage .recite-progress").textContent.trim(),
+      backToFront: Boolean(document.querySelector("#reciteStage .recite-prompt")),
+      stored: (() => { try { return JSON.parse(localStorage.getItem("kaoyan-math-recite-v1") || "null"); } catch (_) { return null; } })()
+    }));
+    assert.notStrictEqual(reciteAfter.progress, reciteBefore, `${viewport.name}: next should advance the recite position`);
+    assert.strictEqual(reciteAfter.backToFront, true, `${viewport.name}: a new card should start from the front`);
+    assert(reciteAfter.stored && reciteAfter.stored.cardId, `${viewport.name}: recite position should persist to kaoyan-math-recite-v1`);
+
+    await page.click("#reciteNavBtn");
+    await page.waitForFunction(() => document.querySelector("#viewCards")?.classList.contains("hidden") === false, null, { timeout: 10000 });
+    const reciteExit = await page.evaluate(() => ({
+      stageHidden: document.querySelector("#reciteStage").classList.contains("hidden"),
+      cards: document.querySelectorAll("#formulaList .formula-card").length
+    }));
+    assert.strictEqual(reciteExit.stageHidden, true, `${viewport.name}: leaving recite mode should hide the recite stage`);
+    assert(reciteExit.cards > 0, `${viewport.name}: leaving recite mode should restore the card list`);
   }
 
   await page.click(viewport.labSelector);

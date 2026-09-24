@@ -12,7 +12,11 @@
     flashMode: false,
     onlyInteractive: false,
     view: "cards",
-    errorType: ""
+    errorType: "",
+    // 背诵模式（一屏一张）：reciteReveal 0=正面 1=公式 2=解释
+    reciteMode: false,
+    reciteIndex: 0,
+    reciteReveal: 0
   };
   const originalIndex = new Map(cards.map((card, i) => [card.id, i]));
   const cardById = new Map(cards.map((card) => [card.id, card]));
@@ -109,6 +113,14 @@
   const MASTERY_LABEL = ["未学", "认识", "掌握"];
   const MASTERY_CLASS = ["m-new", "m-familiar", "m-known"];
 
+  // ── 渲染预算 ─────────────────────────────────────────────────────────────────
+  // 首屏只渲染 LIST_WINDOW_SIZE 张卡，滚动哨兵进入视口后再追加同样多张；
+  // MathJax 只排版进入视口（含 MATH_ROOT_MARGIN 预取）的公式；学习拆解展开时才挂载。
+  const LIST_WINDOW_SIZE = 16;
+  const MATH_ROOT_MARGIN = "600px";
+  const SENTINEL_ROOT_MARGIN = "400px";
+  const RECITE_STORAGE_KEY = "kaoyan-math-recite-v1";
+
   // ── utils ─────────────────────────────────────────────────────────────────────
   const $ = (id) => document.getElementById(id);
   const setText = (id, value) => { const el = $(id); if (el) el.textContent = value; };
@@ -158,6 +170,7 @@
     // Esc works everywhere
     if (e.key === "Escape") {
       if ($("sidebar")?.classList.contains("open")) { closeSidebar(); return; }
+      if (state.reciteMode) { setReciteMode(false); return; }
       if (inInput) { e.target.blur(); return; }
       // close the first open details in focused card, or any open details
       const card = getFocusedCard();
@@ -178,6 +191,15 @@
 
     // all other shortcuts: ignore when typing
     if (inInput) return;
+
+    // 背诵模式：j/k 翻卡，空格揭开，m 切掌握度
+    if (state.reciteMode) {
+      if (e.key === "j" || e.key === "ArrowRight") { e.preventDefault(); stepRecite(1); return; }
+      if (e.key === "k" || e.key === "ArrowLeft") { e.preventDefault(); stepRecite(-1); return; }
+      if (e.key === " " || e.key === "Enter") { e.preventDefault(); advanceReciteReveal(); return; }
+      if (e.key === "m") { handleReciteAction("mastery"); return; }
+      return;
+    }
 
     const card = getFocusedCard();
     switch (e.key) {
@@ -223,7 +245,7 @@
     if (!btn) return;
     const lvl = getMastery(id);
     btn.className = `mastery-btn ${MASTERY_CLASS[lvl]}`;
-    btn.textContent = `${MASTERY_LABEL[lvl]} (m)`;
+    btn.innerHTML = `${MASTERY_LABEL[lvl]}<span class="kb-suffix"> (m)</span>`;
     btn.setAttribute("aria-label", `掌握度：${MASTERY_LABEL[lvl]}`);
   }
 
@@ -409,7 +431,7 @@
       searchTimer = setTimeout(() => {
         state.query = value;
         renderActiveView();
-      }, 150);
+      }, 250);
     });
     on("importanceFilter", "change", (e) => { state.importance = e.target.value; renderActiveView(); });
     on("tagFilter", "change", (e) => { state.tag = e.target.value; renderActiveView(); });
@@ -463,6 +485,7 @@
         renderErrorCards();
       });
     });
+    bindReciteControls();
   }
 
   function openSidebar() {
@@ -476,16 +499,28 @@
   }
 
   function switchView(view) {
-    state.view = view || "cards";
-    ["Cards", "Labs", "Review", "Errors"].forEach((name) => {
-      const id = `view${name}`;
-      $(id)?.classList.toggle("hidden", id !== `view${capitalize(state.view)}`);
-    });
+    const nextView = view || "cards";
+    if (state.reciteMode && nextView !== "cards") {
+      state.reciteMode = false;   // 切到其它视图就退出背诵模式
+      updateReciteControls();
+    }
+    state.view = nextView;
+    applyViewVisibility();
     document.querySelectorAll(".qnav-btn, .bnav-btn[data-view]").forEach((button) => {
       button.classList.toggle("active", button.dataset.view === state.view);
     });
     closeSidebar();
     renderActiveView();
+  }
+
+  // 视图显隐：背诵模式只留 #reciteStage
+  function applyViewVisibility() {
+    ["Cards", "Labs", "Review", "Errors"].forEach((name) => {
+      const id = `view${name}`;
+      $(id)?.classList.toggle("hidden", state.reciteMode || id !== `view${capitalize(state.view)}`);
+    });
+    $("reciteStage")?.classList.toggle("hidden", !state.reciteMode);
+    document.body.classList.toggle("recite-on", state.reciteMode);
   }
 
   function capitalize(value) {
@@ -517,25 +552,145 @@
 
   function clearCardContainers(exceptId = "") {
     ["formulaList", "reviewQueue", "errorCards"].forEach((id) => {
-      if (id !== exceptId) setHtml(id, "");
+      if (id === exceptId) return;
+      const el = $(id);
+      clearMathCache(el);
+      setHtml(id, "");
     });
+  }
+
+  // ── 列表窗口化 ───────────────────────────────────────────────────────────────
+  // 每个列表容器各维护一个窗口：cardWindows 记录该列表的完整结果与已渲染到的位置。
+  // 首屏只渲染 LIST_WINDOW_SIZE 张，滚动哨兵进入视口后再追加同样多张。
+  const cardWindows = new Map();
+
+  function windowState(targetId) {
+    let win = cardWindows.get(targetId);
+    if (!win) { win = { items: [], end: 0 }; cardWindows.set(targetId, win); }
+    return win;
+  }
+
+  // 替换 innerHTML 前先让 MathJax 忘掉旧节点，避免缓存指向已删除的 DOM
+  function clearMathCache(root) {
+    if (!root) return;
+    const api = window.MathJax;
+    if (api && typeof api.typesetClear === "function") {
+      try { api.typesetClear([root]); } catch (_) {}
+    }
+  }
+
+  let mathGeneration = 0;
+  let mathObserver = null;
+  let sentinelObserver = null;
+  let mathRetryTimer = null;
+
+  function ensureMathObserver() {
+    if (mathObserver || typeof IntersectionObserver !== "function") return mathObserver;
+    mathObserver = new IntersectionObserver((entries) => {
+      entries.forEach((entry) => {
+        if (!entry.isIntersecting) return;
+        mathObserver.unobserve(entry.target);
+        typesetFormula(entry.target);
+      });
+    }, { rootMargin: `${MATH_ROOT_MARGIN} 0px` });
+    return mathObserver;
+  }
+
+  function ensureSentinelObserver() {
+    if (sentinelObserver || typeof IntersectionObserver !== "function") return sentinelObserver;
+    sentinelObserver = new IntersectionObserver((entries) => {
+      entries.forEach((entry) => {
+        if (!entry.isIntersecting) return;
+        const list = entry.target.closest ? entry.target.closest(".formula-list") : null;
+        if (list && list.id) growCardWindow(list.id);
+      });
+    }, { rootMargin: `${SENTINEL_ROOT_MARGIN} 0px` });
+    return sentinelObserver;
   }
 
   function renderCardList(targetId, items, emptyMessage, infoText) {
     const list = $(targetId);
     if (!list) return;
-    currentItems = sortCards(items);
+    const sorted = sortCards(items);
+    currentItems = sorted;
     focusedIndex = -1;
-    setText("resultsInfo", infoText || `当前显示 ${currentItems.length} / ${cards.length} 张公式卡`);
+    setText("resultsInfo", infoText || `当前显示 ${sorted.length} / ${cards.length} 张公式卡`);
     list.classList.toggle("flash-mode", state.flashMode);
-    if (!currentItems.length) {
+    const win = windowState(targetId);
+    win.items = sorted;
+    win.end = 0;
+    mathGeneration += 1;
+    clearMathCache(list);
+    list.innerHTML = "";
+    if (!sorted.length) {
       list.innerHTML = `<div class="empty-state">${escapeHtml(emptyMessage)}</div>`;
+      renderMasteryStats();
+      if (state.reciteMode) renderReciteStage();
       return;
     }
-    list.innerHTML = currentItems.map(renderCard).join("");
-    setupLazyDemos(list);
-    typesetMath(list);
+    growCardWindow(targetId, LIST_WINDOW_SIZE);
     renderMasteryStats();
+    if (state.reciteMode && targetId === "formulaList") syncReciteIndex();
+  }
+
+  // 追加一批卡片；返回是否真的追加了内容
+  function growCardWindow(targetId, step = LIST_WINDOW_SIZE) {
+    const list = $(targetId);
+    if (!list) return false;
+    const win = windowState(targetId);
+    if (!win.items.length || win.end >= win.items.length) return false;
+    const start = win.end;
+    const end = Math.min(start + step, win.items.length);
+    const html = win.items.slice(start, end).map(renderCard).join("");
+    const sentinel = list.querySelector(":scope > .list-sentinel");
+    if (sentinel) sentinel.insertAdjacentHTML("beforebegin", html);
+    else list.insertAdjacentHTML("beforeend", html);
+    win.end = end;
+    observePendingMath(list);
+    updateListSentinel(list, win);
+    return true;
+  }
+
+  // 只让进入视口的公式排版；断网/未就绪时保留原始 LaTeX 文本
+  function observePendingMath(list) {
+    const pending = [...list.querySelectorAll('.formula[data-math-pending="true"]')];
+    if (!pending.length) return;
+    const observer = ensureMathObserver();
+    if (observer) pending.forEach((node) => observer.observe(node));
+    else pending.forEach(typesetFormula);
+  }
+
+  function updateListSentinel(list, win) {
+    let sentinel = list.querySelector(":scope > .list-sentinel");
+    const hasMore = win.end < win.items.length;
+    if (!hasMore) {
+      if (sentinel) {
+        sentinelObserver?.unobserve(sentinel);
+        sentinel.remove();
+      }
+      return;
+    }
+    if (!sentinel) {
+      sentinel = document.createElement("div");
+      sentinel.className = "list-sentinel";
+      sentinel.setAttribute("aria-hidden", "true");
+      sentinel.textContent = "继续下滑加载更多…";
+      list.appendChild(sentinel);
+    }
+    ensureSentinelObserver()?.observe(sentinel);
+  }
+
+  // 把窗口扩到包含目标卡（用于 jumpToCard / 关联跳转），不为此排版整表
+  function ensureCardRendered(targetId, cardId) {
+    const win = windowState(targetId);
+    const index = win.items.findIndex((card) => card.id === cardId);
+    if (index < 0) return false;
+    let guard = 0;
+    while (win.end <= index && guard < 100) {
+      guard += 1;
+      if (!growCardWindow(targetId, Math.max(LIST_WINDOW_SIZE, index - win.end + 1))) return false;
+    }
+    return true;
   }
 
   const LAB_META = {
@@ -762,14 +917,19 @@
     $("onlyInteractiveBtn")?.classList.add("active-mode");
     switchView("cards");
     requestAnimationFrame(() => {
-      const selector = `.demo-box[data-demo="${cssEscape(state.labType)}"]`;
-      const demo = document.querySelector(selector);
-      const article = demo?.closest(".formula-card");
-      if (!demo || !article) return;
+      // 窗口化后 demo 只在卡片的 <details> 展开时才存在：先定位卡，再挂载，再取 demo
+      const win = windowState("formulaList");
+      const target = win.items.find((card) => card.interactiveType === state.labType);
+      const article = target ? document.getElementById(target.id) : null;
+      if (!article) return;
 
-      const coreDetails = demo.closest("details");
+      const coreDetails = article.querySelector("details.card-details-core");
       if (coreDetails && !coreDetails.open) coreDetails.open = true;
+      mountDetailsContent(coreDetails);   // toggle 事件是异步的，这里同步挂载学习层与 demo
+
+      const demo = article.querySelector(`.demo-box[data-demo="${cssEscape(state.labType)}"]`);
       article.querySelectorAll(".demo-box[data-demo]").forEach(mountDemoBox);
+      if (!demo) return;
       article.classList.add("card-jump-highlight");
       setTimeout(() => article.classList.remove("card-jump-highlight"), 1400);
       setText("resultsInfo", `已打开实验室演示：${article.querySelector("h3")?.textContent || state.labType}`);
@@ -904,26 +1064,6 @@
       ? `<div class="rel-row"><span class="rel-label">相关：</span>${relChips}</div>`
       : "";
 
-    // ── 层级结构：核心区（howToUse + example + mistakes）常驻可见 ──
-    //             次要区（conditions + miniProof）默认折叠
-    const coreBlocks = `
-      <div class="detail-block db-how"><h4>怎么用</h4><p>${escapeHtml(card.howToUse)}</p></div>
-      ${renderStudyLayer(card)}
-      <div class="detail-block db-ex"><h4>小例子</h4><p>${escapeHtml(card.example)}</p></div>
-      <div class="detail-block db-mis"><h4>⚠ 易错点</h4><p>${escapeHtml(card.mistakes)}</p></div>`;
-
-    const secondaryBlocks = `
-      ${renderProofGuide(card)}
-      <div class="detail-block db-cond"><h4>适用条件</h4><p>${escapeHtml(card.conditions)}</p></div>
-      <div class="detail-block db-proof"><h4>简短证明/来源</h4><p>${escapeHtml(card.miniProof)}</p></div>`;
-
-    const demoBlock = card.interactiveType !== "none"
-      ? `<div class="detail-block interactive db-demo">
-           <h4>交互演示</h4>
-           <div class="demo-box" data-demo="${escapeHtml(card.interactiveType)}" data-card="${escapeHtml(card.id)}"></div>
-         </div>`
-      : "";
-
     return `
       <article class="formula-card" id="${escapeHtml(card.id)}">
         <div class="formula-head">
@@ -936,10 +1076,10 @@
           </div>
           <div class="card-actions">
             <button class="fav-btn ${isFavorite(card.id) ? "active" : ""}" data-id="${escapeHtml(card.id)}" title="收藏 / 取消收藏" aria-label="${isFavorite(card.id) ? "取消收藏" : "收藏"}">${isFavorite(card.id) ? "★" : "☆"}</button>
-            <button class="mastery-btn ${MASTERY_CLASS[lvl]}" data-id="${escapeHtml(card.id)}">${MASTERY_LABEL[lvl]} (m)</button>
+            <button class="mastery-btn ${MASTERY_CLASS[lvl]}" data-id="${escapeHtml(card.id)}">${MASTERY_LABEL[lvl]}<span class="kb-suffix"> (m)</span></button>
           </div>
         </div>
-        <div class="formula" data-formula-card="${escapeHtml(card.id)}">\\[\\begin{gathered}${escapeHtml(card.latex)}\\end{gathered}\\]</div>
+        <div class="formula" data-formula-card="${escapeHtml(card.id)}" data-math-pending="true">\\[\\begin{gathered}${escapeHtml(card.latex)}\\end{gathered}\\]</div>
         <div class="flash-body">
           ${flashCover}
           <div class="flash-content">
@@ -948,22 +1088,60 @@
             ${relRow}
             <details class="card-details-core">
               <summary>展开：用法、例子与易错点</summary>
-              <div class="detail-grid dg-core">
-                ${coreBlocks}
-                ${demoBlock}
-              </div>
+              <div class="detail-grid dg-core"></div>
             </details>
             <details class="card-details-secondary">
               <summary>深入：适用条件与证明来源</summary>
-              <div class="detail-grid dg-secondary">
-                ${secondaryBlocks}
-              </div>
+              <div class="detail-grid dg-secondary"></div>
             </details>
           </div>
         </div>
       </article>
     `;
   }
+
+  // 学习层按需挂载：<details> 首次展开时才写入 DOM，数据仍在 formula-data.js / study-layer.js
+  function cardCoreBlocks(card) {
+    const demoBlock = card.interactiveType !== "none"
+      ? `<div class="detail-block interactive db-demo">
+           <h4>交互演示</h4>
+           <div class="demo-box" data-demo="${escapeHtml(card.interactiveType)}" data-card="${escapeHtml(card.id)}"></div>
+         </div>`
+      : "";
+    return `
+      <div class="detail-block db-how"><h4>怎么用</h4><p>${escapeHtml(card.howToUse)}</p></div>
+      ${renderStudyLayer(card)}
+      <div class="detail-block db-ex"><h4>小例子</h4><p>${escapeHtml(card.example)}</p></div>
+      <div class="detail-block db-mis"><h4>⚠ 易错点</h4><p>${escapeHtml(card.mistakes)}</p></div>
+      ${demoBlock}`;
+  }
+
+  function cardSecondaryBlocks(card) {
+    return `
+      ${renderProofGuide(card)}
+      <div class="detail-block db-cond"><h4>适用条件</h4><p>${escapeHtml(card.conditions)}</p></div>
+      <div class="detail-block db-proof"><h4>简短证明/来源</h4><p>${escapeHtml(card.miniProof)}</p></div>`;
+  }
+
+  function mountDetailsContent(details) {
+    if (!details || details.dataset.detailsMounted === "true") return;
+    const article = details.closest ? details.closest(".formula-card") : null;
+    const card = article ? cardById.get(article.id) : null;
+    const grid = details.querySelector ? details.querySelector(".detail-grid") : null;
+    if (!card || !grid) return;
+    details.dataset.detailsMounted = "true";
+    grid.innerHTML = details.classList.contains("card-details-core")
+      ? cardCoreBlocks(card)
+      : cardSecondaryBlocks(card);
+    setupLazyDemos(grid);
+  }
+
+  // toggle 事件不冒泡，用捕获阶段监听展开
+  document.addEventListener("toggle", (event) => {
+    const target = event.target;
+    if (!target || target.tagName !== "DETAILS" || !target.open) return;
+    mountDetailsContent(target);
+  }, true);
 
   function renderProofGuide(card) {
     const hay = [card.title, card.section, card.chapter, card.tags.join(" "), card.interactiveType].join(" ");
@@ -1108,6 +1286,9 @@
 
     renderCards();
 
+    // 窗口化后目标卡可能还没渲染：先把窗口扩到包含该卡，再滚动（不为此排版整表）
+    ensureCardRendered("formulaList", targetId);
+
     // scroll and highlight after render
     requestAnimationFrame(() => {
       const el = document.getElementById(targetId);
@@ -1129,6 +1310,193 @@
     toast.textContent = `已清除筛选，跳转到：${title}`;
     toast.classList.add("jump-toast-show");
     setTimeout(() => toast.classList.remove("jump-toast-show"), 2200);
+  }
+
+  // ── 背诵模式（一屏一张）──────────────────────────────────────────────────────
+  // 正面：章节 + 标题 + 重要程度；第一次揭开显示公式；第二次揭开显示理解 / 用法 / 易错点。
+  let pendingReciteCardId = "";
+
+  function reciteItems() {
+    return currentItems.length ? currentItems : sortCards(filteredCards());
+  }
+
+  function clampReciteIndex() {
+    const items = reciteItems();
+    if (!items.length) { state.reciteIndex = 0; return items; }
+    state.reciteIndex = Math.max(0, Math.min(state.reciteIndex, items.length - 1));
+    return items;
+  }
+
+  function loadReciteState() {
+    try { return JSON.parse(localStorage.getItem(RECITE_STORAGE_KEY) || "null"); } catch (_) { return null; }
+  }
+
+  function saveReciteState() {
+    const items = reciteItems();
+    const card = items[state.reciteIndex];
+    try {
+      localStorage.setItem(RECITE_STORAGE_KEY, JSON.stringify({
+        cardId: card ? card.id : "",
+        chapter: state.chapter,
+        importance: state.importance
+      }));
+    } catch (_) {}
+  }
+
+  function restoreReciteState() {
+    const saved = loadReciteState();
+    if (!saved) return;
+    if (saved.importance && saved.importance !== state.importance) {
+      state.importance = saved.importance;
+      const sel = $("importanceFilter");
+      if (sel) sel.value = saved.importance;
+    }
+    if (saved.chapter && saved.chapter !== state.chapter) {
+      state.chapter = saved.chapter;
+      setActiveChapter();
+    }
+    pendingReciteCardId = saved.cardId || "";
+  }
+
+  function updateReciteControls() {
+    const btn = $("reciteModeBtn");
+    if (btn) {
+      btn.classList.toggle("active-mode", state.reciteMode);
+      btn.textContent = state.reciteMode ? "🧠 背诵中" : "🧠 背诵";
+    }
+    $("reciteNavBtn")?.classList.toggle("active", state.reciteMode);
+  }
+
+  function setReciteMode(on) {
+    const next = Boolean(on);
+    if (next === state.reciteMode) return;
+    if (next) {
+      state.reciteMode = true;
+      state.reciteReveal = 0;
+      restoreReciteState();
+      if (state.view !== "cards") switchView("cards");
+      else renderCards();
+      clampReciteIndex();
+      if (pendingReciteCardId) {
+        const index = reciteItems().findIndex((card) => card.id === pendingReciteCardId);
+        if (index >= 0) state.reciteIndex = index;
+        pendingReciteCardId = "";
+      }
+    } else {
+      saveReciteState();
+      state.reciteMode = false;
+      renderActiveView();
+    }
+    updateReciteControls();
+    applyViewVisibility();
+    renderReciteStage();
+  }
+
+  function syncReciteIndex() {
+    clampReciteIndex();
+    renderReciteStage();
+  }
+
+  function stepRecite(delta) {
+    const items = clampReciteIndex();
+    if (!items.length) return;
+    state.reciteIndex = (state.reciteIndex + delta + items.length) % items.length;
+    state.reciteReveal = 0;
+    renderReciteStage();
+    saveReciteState();
+  }
+
+  function advanceReciteReveal() {
+    state.reciteReveal = Math.min(2, state.reciteReveal + 1);
+    renderReciteStage();
+    saveReciteState();
+  }
+
+  function handleReciteAction(action) {
+    const items = clampReciteIndex();
+    if (!items.length) return;
+    if (action === "next") { stepRecite(1); return; }
+    if (action === "prev") { stepRecite(-1); return; }
+    if (action === "reveal") { advanceReciteReveal(); return; }
+    if (action === "mastery") {
+      const card = items[state.reciteIndex];
+      cycleMastery(card.id, (getMastery(card.id) + 1) % 3);
+      renderReciteStage();
+    }
+  }
+
+  function renderReciteStage() {
+    const stage = $("reciteStage");
+    if (!stage) return;
+    if (!state.reciteMode) { stage.innerHTML = ""; return; }
+    const items = clampReciteIndex();
+    if (!items.length) {
+      stage.innerHTML = `<div class="empty-state">当前筛选下没有可背诵的公式卡，先调整筛选或搜索关键词。</div>`;
+      return;
+    }
+    const card = items[state.reciteIndex];
+    const revealed = state.reciteReveal >= 1;
+    const expanded = state.reciteReveal >= 2;
+    stage.innerHTML = `
+      <div class="recite-topbar">
+        <span class="recite-progress">${state.reciteIndex + 1} / ${items.length}</span>
+        <span class="recite-chapter">${escapeHtml(card.subject)} / ${escapeHtml(card.chapter)} / ${escapeHtml(card.section)}</span>
+      </div>
+      <article class="recite-card">
+        <div class="recite-title-row">
+          <h2>${escapeHtml(card.title)}</h2>
+          <span class="badge ${escapeHtml(card.importance)}">${escapeHtml(card.importance)}</span>
+        </div>
+        ${revealed
+          ? `<div class="formula" data-formula-card="${escapeHtml(card.id)}" data-math-pending="true">\\[\\begin{gathered}${escapeHtml(card.latex)}\\end{gathered}\\]</div>`
+          : `<div class="recite-prompt">先自己写出公式，再点「揭开」核对。</div>`}
+        <div class="recite-detail${expanded ? "" : " hidden"}">
+          <p class="intuition"><strong>一句话理解：</strong>${escapeHtml(card.intuition)}</p>
+          <div class="detail-block db-how"><h4>怎么用</h4><p>${escapeHtml(card.howToUse)}</p></div>
+          <div class="detail-block db-mis"><h4>⚠ 易错点</h4><p>${escapeHtml(card.mistakes)}</p></div>
+        </div>
+      </article>
+      <div class="recite-bar" role="group" aria-label="背诵操作">
+        <button class="recite-btn" type="button" data-recite="prev">上一张</button>
+        <button class="recite-btn recite-btn-primary" type="button" data-recite="reveal">${revealed ? (expanded ? "已展开" : "展开用法") : "揭开"}</button>
+        <button class="recite-btn recite-mastery ${MASTERY_CLASS[getMastery(card.id)]}" type="button" data-recite="mastery">${MASTERY_LABEL[getMastery(card.id)]}</button>
+        <button class="recite-btn" type="button" data-recite="next">下一张</button>
+      </div>`;
+    const formula = stage.querySelector('.formula[data-math-pending="true"]');
+    if (formula) typesetFormula(formula);   // 背诵页只有一张公式，进视口即排版
+  }
+
+  function bindReciteSwipe(stage) {
+    let tracking = false, startX = 0, startY = 0;
+    stage.addEventListener("touchstart", (event) => {
+      if (event.touches.length !== 1) { tracking = false; return; }
+      tracking = true;
+      startX = event.touches[0].clientX;
+      startY = event.touches[0].clientY;
+    }, { passive: true });
+    stage.addEventListener("touchend", (event) => {
+      if (!tracking) return;
+      tracking = false;
+      const touch = event.changedTouches[0];
+      if (!touch) return;
+      const dx = touch.clientX - startX;
+      const dy = touch.clientY - startY;
+      if (Math.abs(dx) < 48 || Math.abs(dx) < Math.abs(dy)) return;   // 竖滑仍交给页面滚动
+      stepRecite(dx < 0 ? 1 : -1);
+    }, { passive: true });
+  }
+
+  function bindReciteControls() {
+    const stage = $("reciteStage");
+    if (stage) {
+      stage.addEventListener("click", (event) => {
+        const button = event.target.closest("[data-recite]");
+        if (button) handleReciteAction(button.dataset.recite);
+      });
+      bindReciteSwipe(stage);
+    }
+    on("reciteModeBtn", "click", () => setReciteMode(!state.reciteMode));
+    on("reciteNavBtn", "click", () => setReciteMode(!state.reciteMode));
   }
 
   // ── interactive demos ─────────────────────────────────────────────────────────
@@ -1155,10 +1523,59 @@
 
   // scope: 可选的 DOM 节点（或节点数组），只排版这些子树，避免每次重排整篇文档
   function typesetMath(scope) {
-    if (window.MathJax && window.MathJax.typesetPromise) {
-      const arg = scope ? (Array.isArray(scope) ? scope : [scope]) : undefined;
-      window.MathJax.typesetPromise(arg).then(markMathErrors).catch((e) => { console.warn("MathJax 失败：", e); markMathErrors(); });
+    const api = window.MathJax;
+    if (!api || typeof api.typesetPromise !== "function") return;
+    const nodes = scope ? (Array.isArray(scope) ? scope : [scope]).filter((node) => node && node.isConnected) : undefined;
+    if (nodes && !nodes.length) return;
+    const generation = mathGeneration;
+    api.typesetPromise(nodes)
+      .then(() => {
+        // 同一次搜索/筛选里上一次排版可能已经过期：DOM 换了就不要再打标记
+        if (generation !== mathGeneration) return;
+        markMathErrors();
+        (nodes || []).forEach(markFormulaOverflow);
+      })
+      .catch((e) => { console.warn("MathJax 失败：", e); if (generation === mathGeneration) markMathErrors(); });
+  }
+
+  // 只排版进入视口的公式；MathJax 未就绪时保留 data-math-pending，稍后重试
+  function typesetFormula(node) {
+    if (!node || node.dataset.mathPending !== "true") return;
+    if (!window.MathJax || typeof window.MathJax.typesetPromise !== "function") {
+      scheduleMathRetry();
+      return;
     }
+    node.dataset.mathPending = "false";
+    typesetMath([node]);
+  }
+
+  // MathJax（CDN）晚到时补排一次已渲染的公式；超时后放弃，原始 LaTeX 仍可读
+  function scheduleMathRetry() {
+    if (mathRetryTimer || typeof setInterval !== "function") return;
+    let attempts = 0;
+    mathRetryTimer = setInterval(() => {
+      attempts += 1;
+      if (window.MathJax && typeof window.MathJax.typesetPromise === "function") {
+        clearInterval(mathRetryTimer);
+        mathRetryTimer = null;
+        document.querySelectorAll('.formula[data-math-pending="true"]').forEach(typesetFormula);
+      } else if (attempts >= 40) {
+        clearInterval(mathRetryTimer);
+        mathRetryTimer = null;
+      }
+    }, 500);
+  }
+
+  // 公式比容器宽时给一句提示，避免看起来像被截断（内部横向滚动兜底）
+  function markFormulaOverflow(node) {
+    if (!node || typeof node.getBoundingClientRect !== "function" || !node.parentNode) return;
+    if (node.dataset.mathOverflow === "true") return;
+    if (node.scrollWidth <= node.clientWidth + 2) return;
+    node.dataset.mathOverflow = "true";
+    const hint = document.createElement("div");
+    hint.className = "formula-scroll-hint";
+    hint.textContent = "← 左右滑动看全式 →";
+    node.insertAdjacentElement("afterend", hint);
   }
 
   function markMathErrors() {

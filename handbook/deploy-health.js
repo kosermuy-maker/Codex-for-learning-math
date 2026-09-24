@@ -6,7 +6,7 @@ const { URL } = require("url");
 const packageJson = require("../package.json");
 
 const expectedVersion = packageJson.version;
-const expectedRepo = "ULing19/Codex-for-learning-math";
+const expectedRepo = "kosermuy-maker/Codex-for-learning-math";
 const baseUrl = (process.env.DEPLOY_HEALTH_BASE_URL || packageJson.homepage).replace(/\/+$/, "");
 const apiBaseUrl = (process.env.GITHUB_API_BASE_URL || "https://api.github.com").replace(/\/+$/, "");
 const githubToken = process.env.GITHUB_TOKEN || process.env.GH_TOKEN || "";
@@ -131,7 +131,7 @@ async function checkGitHubState() {
   const pages = (await request(`${apiBaseUrl}/repos/${expectedRepo}/pages`, { json: true })).body;
   assert.strictEqual(pages.build_type, "workflow", "GitHub Pages should use workflow deployment");
   assert.strictEqual(pages.status, "built", "GitHub Pages status should be built");
-  assert.strictEqual(pages.html_url, "https://uling19.github.io/Codex-for-learning-math/", "Pages URL should match project homepage root");
+  assert.strictEqual(pages.html_url, "https://kosermuy-maker.github.io/Codex-for-learning-math/", "Pages URL should match project homepage root");
 
   const ref = (await request(`${apiBaseUrl}/repos/${expectedRepo}/git/ref/heads/main`, { json: true })).body;
   const headSha = ref.object.sha;

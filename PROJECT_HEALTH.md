@@ -7,9 +7,9 @@
 | Metric | Value |
 | --- | --- |
 | Package | codex-for-learning-math |
-| Version | 1.0.3 |
+| Version | 1.1.0 |
 | License | MIT |
-| Homepage | https://uling19.github.io/Codex-for-learning-math/handbook/ |
+| Homepage | https://kosermuy-maker.github.io/Codex-for-learning-math/handbook/ |
 | Node | >=24 |
 | Formula cards | 494 |
 | Interactive card bindings | 184 |

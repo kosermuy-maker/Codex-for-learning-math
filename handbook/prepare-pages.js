@@ -14,6 +14,8 @@ const handbookFiles = [
   "study-layer.js",
   "formula-data.js",
   "preview.png",
+  "manifest.webmanifest",
+  "icon.svg",
   "README.md"
 ];
 
@@ -50,7 +52,9 @@ function assertOutput() {
     "handbook/app.js",
     "handbook/study-layer.js",
     "handbook/formula-data.js",
-    "handbook/preview.png"
+    "handbook/preview.png",
+    "handbook/manifest.webmanifest",
+    "handbook/icon.svg"
   ];
   for (const file of requiredFiles) {
     const filePath = path.join(outDir, file);

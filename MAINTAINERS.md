@@ -6,9 +6,9 @@ This file defines practical review ownership for the handbook. It does not creat
 
 ## Current Owner / 当前负责人
 
-- GitHub owner: `@ULing19`
-- Repository: `ULing19/Codex-for-learning-math`
-- Live site: https://uling19.github.io/Codex-for-learning-math/handbook/
+- GitHub owner: `@kosermuy-maker`
+- Repository: `kosermuy-maker/Codex-for-learning-math`
+- Live site: https://kosermuy-maker.github.io/Codex-for-learning-math/handbook/
 
 ## Review Areas / 审查领域
 
