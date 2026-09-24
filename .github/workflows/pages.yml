@@ -1,0 +1,66 @@
+name: Deploy Pages
+
+on:
+  push:
+    branches: [main]
+  workflow_dispatch:
+
+permissions:
+  actions: read
+  contents: read
+  pages: write
+  id-token: write
+
+concurrency:
+  group: pages
+  cancel-in-progress: true
+
+jobs:
+  deploy:
+    runs-on: ubuntu-latest
+    environment:
+      name: github-pages
+      url: ${{ steps.deployment.outputs.page_url }}
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v7
+
+      - name: Setup Node
+        uses: actions/setup-node@v6
+        with:
+          node-version: "24"
+
+      - name: Verify handbook
+        run: npm run verify
+
+      - name: Prepare Pages artifact
+        run: npm run pages:prepare
+
+      - name: Configure Pages
+        uses: actions/configure-pages@v5
+
+      - name: Upload Pages artifact
+        uses: actions/upload-pages-artifact@v4
+        with:
+          path: .pages-artifact
+
+      - name: Deploy to GitHub Pages
+        id: deployment
+        uses: actions/deploy-pages@v5
+
+      - name: Audit deployed Pages
+        env:
+          GITHUB_TOKEN: ${{ github.token }}
+          DEPLOY_HEALTH_SKIP_WORKFLOWS: "1"
+        run: npm run verify:deploy
+
+      - name: Install Playwright runtime
+        run: npm install --no-save playwright@1.61.1
+
+      - name: Install Chromium browser
+        run: npx playwright install --with-deps chromium
+
+      - name: Audit deployed labs in browser
+        env:
+          BROWSER_SMOKE_BASE_URL: ${{ steps.deployment.outputs.page_url }}handbook
+        run: npm run verify:browser
