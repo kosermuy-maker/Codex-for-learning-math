@@ -130,7 +130,8 @@ function workflowSummary(runs) {
 async function checkGitHubState() {
   const pages = (await request(`${apiBaseUrl}/repos/${expectedRepo}/pages`, { json: true })).body;
   assert.strictEqual(pages.build_type, "workflow", "GitHub Pages should use workflow deployment");
-  assert.strictEqual(pages.status, "built", "GitHub Pages status should be built");
+  // workflow 部署的站点，Pages API 的 status 一直是 null（没有 legacy build），只有 legacy 才会是 "built"
+  assert(pages.status === "built" || pages.status === null, `GitHub Pages status should be built, got ${pages.status}`);
   assert.strictEqual(pages.html_url, "https://kosermuy-maker.github.io/Codex-for-learning-math/", "Pages URL should match project homepage root");
 
   const ref = (await request(`${apiBaseUrl}/repos/${expectedRepo}/git/ref/heads/main`, { json: true })).body;
