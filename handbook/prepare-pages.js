@@ -42,6 +42,15 @@ function copyHandbookFiles() {
   }
 }
 
+// 自托管的 MathJax 与字体（见 handbook/vendor/README.md），整目录复制
+function copyVendorDir() {
+  const source = path.join(__dirname, "vendor");
+  if (!fs.existsSync(path.join(source, "mathjax", "tex-chtml.js"))) {
+    throw new Error("Missing deploy asset: handbook/vendor/mathjax/tex-chtml.js");
+  }
+  fs.cpSync(source, path.join(handbookOutDir, "vendor"), { recursive: true });
+}
+
 function assertOutput() {
   const requiredFiles = [
     ".nojekyll",
@@ -54,7 +63,9 @@ function assertOutput() {
     "handbook/formula-data.js",
     "handbook/preview.png",
     "handbook/manifest.webmanifest",
-    "handbook/icon.svg"
+    "handbook/icon.svg",
+    "handbook/vendor/mathjax/tex-chtml.js",
+    "handbook/vendor/mathjax-fonts/mathjax-newcm-font/chtml.js"
   ];
   for (const file of requiredFiles) {
     const filePath = path.join(outDir, file);
@@ -67,6 +78,7 @@ function main() {
   fs.mkdirSync(handbookOutDir, { recursive: true });
   copyTopLevelFiles();
   copyHandbookFiles();
+  copyVendorDir();
   assertOutput();
   console.log(`pages-prepare-ok ${path.relative(root, outDir)} files=${countFiles(outDir)}`);
 }

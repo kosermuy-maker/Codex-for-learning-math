@@ -4,6 +4,7 @@ All notable changes are tracked here. This project follows a pragmatic changelog
 
 ## Unreleased
 
+- Self-hosted MathJax 4.1.3 and the NewCM CHTML fonts under `handbook/vendor/` (Apache-2.0, see `handbook/vendor/README.md`). Pages loaded MathJax and every font from `cdn.jsdelivr.net`; on networks where jsDelivr is slow or blocked (common in mainland China) formulas stayed as raw `\[\begin{gathered}…` LaTeX, which reads as garbled text. jsDelivr is kept only as an `onerror` fallback. Cache-busted assets to `1.2.2`.
 - Added upstream attribution: this repository is documented as a derived work of `ULing19/Codex-for-learning-math` (MIT, © 2026 Hong Zhang) in `README.md`, `MAINTAINERS.md`, `CITATION.cff` and `LICENSE`, and the published branch now carries the original 49-commit history instead of a squashed snapshot.
 - Rebuilt the sub-860px shell as a phone app shell: a sticky top bar (menu + brand + mastery progress), a sticky search row under it, filters behind a `⚙ 筛选` drawer, a five-tab bottom bar (手册 / 实验室 / 复习 / 归因 / 背诵), and a full-screen recite mode.
 - Fixed the phone-wide horizontal overflow: grid/flex children kept `min-width: auto`, so the MathJax formula block and the horizontally scrolling recommendation chips forced the page to a 648px minimum width — every 390px phone clipped ~258px on the right and pushed the bottom bar off screen. `min-width: 0` on the long-content children brings the page back to the viewport width at 390/360/320px.

@@ -1,0 +1,19 @@
+{
+  "name": "数学一公式",
+  "short_name": "数学一公式",
+  "description": "考研数学一交互公式手册：494 张公式卡，含适用条件、直觉解释、简短证明、易错点与交互演示。",
+  "lang": "zh-CN",
+  "start_url": "./",
+  "scope": "./",
+  "display": "standalone",
+  "background_color": "#f7f4ee",
+  "theme_color": "#b45f06",
+  "icons": [
+    {
+      "src": "./icon.svg",
+      "sizes": "any",
+      "type": "image/svg+xml",
+      "purpose": "any"
+    }
+  ]
+}

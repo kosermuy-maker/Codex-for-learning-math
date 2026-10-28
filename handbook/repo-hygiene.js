@@ -4,7 +4,7 @@ const path = require("path");
 
 const root = path.resolve(__dirname, "..");
 const binaryExtensions = new Set([
-  ".png", ".jpg", ".jpeg", ".gif", ".webp", ".ico", ".pdf", ".zip"
+  ".png", ".jpg", ".jpeg", ".gif", ".webp", ".ico", ".pdf", ".zip", ".woff2"
 ]);
 const allowControlFiles = new Set([]);
 
